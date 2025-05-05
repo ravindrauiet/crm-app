@@ -1,5 +1,5 @@
 {
-  "name": "your-app-name",
+  "name": "repair-shop-crm",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -9,13 +9,30 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "expo": "~53.0.7",
+    "@react-native-async-storage/async-storage": "^1.24.0",
+    "@react-navigation/native": "^6.1.9",
+    "@react-navigation/native-stack": "^6.9.17",
+    "@reduxjs/toolkit": "^2.0.1",
+    "expo": "~53.0.0",
+    "expo-location": "~18.1.4",
     "expo-status-bar": "~2.2.3",
+    "moment": "^2.29.4",
     "react": "19.0.0",
-    "react-native": "0.79.2"
+    "react-native": "0.79.2",
+    "react-native-maps": "1.7.1",
+    "react-native-paper": "^5.12.1",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "~4.10.0",
+    "react-native-vector-icons": "^10.0.3",
+    "react-redux": "^9.0.4"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "@expo/metro-config": "^0.20.13",
+    "metro": "^0.82.2",
+    "metro-core": "^0.82.2",
+    "metro-runtime": "^0.82.2",
+    "metro-source-map": "^0.82.2"
   },
   "private": true
 }
