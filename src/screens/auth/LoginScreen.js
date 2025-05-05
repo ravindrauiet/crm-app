@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { TextInput, Button, Text, Title, SegmentedButtons } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useDispatch } from 'react-redux';
+import { setUser } from '../../store/slices/authSlice';
 
 export default function LoginScreen({ navigation }) {
+  const dispatch = useDispatch();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [userType, setUserTypeLocal] = useState('customer');
@@ -12,15 +15,18 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     try {
+      console.log('Login attempt started');
       setIsLoading(true);
       setError('');
 
       // Get users from storage
       const usersJson = await AsyncStorage.getItem('users');
+      console.log('Users from storage:', usersJson);
       const users = usersJson ? JSON.parse(usersJson) : [];
 
       // Find user with matching email and password
       const user = users.find(u => u.email === email && u.password === password);
+      console.log('Found user:', user);
 
       if (!user) {
         throw new Error('Invalid email or password');
@@ -32,10 +38,17 @@ export default function LoginScreen({ navigation }) {
 
       // Store logged in user info
       await AsyncStorage.setItem('currentUser', JSON.stringify(user));
+      console.log('User stored in AsyncStorage');
+      
+      // Dispatch user to Redux store
+      dispatch(setUser(user));
+      console.log('User dispatched to Redux');
       
       // Navigate to appropriate screen based on user type
-      navigation.replace(userType === 'customer' ? 'CustomerHome' : 'ShopOwnerHome');
+      console.log('Navigating to:', userType === 'customer' ? 'CustomerHome' : 'ShopDashboard');
+      navigation.replace(userType === 'customer' ? 'CustomerHome' : 'ShopDashboard');
     } catch (error) {
+      console.error('Login error:', error);
       setError(error.message);
     } finally {
       setIsLoading(false);
@@ -45,6 +58,8 @@ export default function LoginScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Title style={styles.title}>Welcome Back</Title>
+      
+      {error ? <Text style={styles.error}>{error}</Text> : null}
       
       <TextInput
         label="Email"
@@ -120,5 +135,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  error: {
+    color: 'red',
+    marginBottom: 16,
+    textAlign: 'center',
   },
 }); 

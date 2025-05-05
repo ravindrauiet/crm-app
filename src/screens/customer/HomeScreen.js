@@ -9,8 +9,21 @@ export default function HomeScreen({ navigation }) {
   const repairs = useSelector(state => state.repairs.repairs);
   const user = useSelector(state => state.auth.user);
 
+  // If user is not loaded yet, show loading state
+  if (!user) {
+    return (
+      <View style={styles.container}>
+        <Card style={styles.welcomeCard}>
+          <Card.Content>
+            <Title>Loading...</Title>
+          </Card.Content>
+        </Card>
+      </View>
+    );
+  }
+
   const activeRepairs = repairs.filter(repair => 
-    repair.customerId === user.uid && repair.status !== 'completed'
+    repair.customerId === user.id && repair.status !== 'completed'
   );
 
   const renderQuickActions = () => (

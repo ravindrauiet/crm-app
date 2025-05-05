@@ -54,7 +54,12 @@ export const checkAuth = createAsyncThunk(
 const authSlice = createSlice({
   name: 'auth',
   initialState,
-  reducers: {},
+  reducers: {
+    setUser: (state, action) => {
+      state.user = action.payload;
+      state.userType = action.payload.userType;
+    }
+  },
   extraReducers: (builder) => {
     builder
       // Login
@@ -98,4 +103,5 @@ const authSlice = createSlice({
   },
 });
 
+export const { setUser } = authSlice.actions;
 export default authSlice.reducer; 
