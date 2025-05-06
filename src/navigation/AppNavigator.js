@@ -26,28 +26,82 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: '#f4511e',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 20
+          },
+          contentStyle: {
+            backgroundColor: '#f5f5f5'
+          }
+        }}
+      >
         {!user ? (
           // Auth Stack
           <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen 
+              name="Login" 
+              component={LoginScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="Register" 
+              component={RegisterScreen}
+              options={{ headerShown: false }}
+            />
           </>
         ) : userType === 'customer' ? (
           // Customer Stack
           <>
-            <Stack.Screen name="CustomerHome" component={CustomerHomeScreen} />
-            <Stack.Screen name="ShopList" component={ShopListScreen} />
-            <Stack.Screen name="Booking" component={BookingScreen} />
-            <Stack.Screen name="RepairStatus" component={RepairStatusScreen} />
+            <Stack.Screen 
+              name="CustomerHome" 
+              component={CustomerHomeScreen}
+              options={{ title: 'Home' }}
+            />
+            <Stack.Screen 
+              name="ShopList" 
+              component={ShopListScreen}
+              options={{ title: 'Repair Shops' }}
+            />
+            <Stack.Screen 
+              name="Booking" 
+              component={BookingScreen}
+              options={{ title: 'Book Repair' }}
+            />
+            <Stack.Screen 
+              name="RepairStatus" 
+              component={RepairStatusScreen}
+              options={{ title: 'Repair Status' }}
+            />
           </>
         ) : (
           // Shop Owner Stack
           <>
-            <Stack.Screen name="ShopDashboard" component={ShopDashboardScreen} />
-            <Stack.Screen name="RepairTickets" component={RepairTicketsScreen} />
-            <Stack.Screen name="CustomerList" component={CustomerListScreen} />
-            <Stack.Screen name="Analytics" component={AnalyticsScreen} />
+            <Stack.Screen 
+              name="ShopDashboard" 
+              component={ShopDashboardScreen}
+              options={{ title: 'Dashboard' }}
+            />
+            <Stack.Screen 
+              name="RepairTickets" 
+              component={RepairTicketsScreen}
+              options={{ title: 'Repair Tickets' }}
+            />
+            <Stack.Screen 
+              name="CustomerList" 
+              component={CustomerListScreen}
+              options={{ title: 'Customers' }}
+            />
+            <Stack.Screen 
+              name="Analytics" 
+              component={AnalyticsScreen}
+              options={{ title: 'Analytics' }}
+            />
           </>
         )}
       </Stack.Navigator>
