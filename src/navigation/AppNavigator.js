@@ -12,33 +12,35 @@ import CustomerHomeScreen from '../screens/customer/HomeScreen';
 import ShopListScreen from '../screens/customer/ShopListScreen';
 import BookingScreen from '../screens/customer/BookingScreen';
 import RepairStatusScreen from '../screens/customer/RepairStatusScreen';
+import DashboardScreen from '../screens/customer/DashboardScreen';
+import NewRepairScreen from '../screens/customer/NewRepairScreen';
 
 // Shop Owner Screens
-import ShopDashboardScreen from '../screens/shop/DashboardScreen';
+import ShopDashboardScreen from '../screens/shop/ShopDashboardScreen';
 import RepairTicketsScreen from '../screens/shop/RepairTicketsScreen';
 import CustomerListScreen from '../screens/shop/CustomerListScreen';
 import AnalyticsScreen from '../screens/shop/AnalyticsScreen';
 
+// Shared Screens
+import RepairDetailsScreen from '../screens/shared/RepairDetailsScreen';
+
 const Stack = createNativeStackNavigator();
 
-export default function AppNavigator() {
+const AppNavigator = () => {
   const { user, userType } = useSelector((state) => state.auth);
 
   return (
     <NavigationContainer>
       <Stack.Navigator
+        initialRouteName={user ? (userType === 'customer' ? 'CustomerHome' : 'ShopDashboard') : 'Login'}
         screenOptions={{
           headerStyle: {
-            backgroundColor: '#f4511e',
+            backgroundColor: '#f5f5f5',
           },
-          headerTintColor: '#fff',
+          headerTintColor: '#000',
           headerTitleStyle: {
             fontWeight: 'bold',
-            fontSize: 20
           },
-          contentStyle: {
-            backgroundColor: '#f5f5f5'
-          }
         }}
       >
         {!user ? (
@@ -78,6 +80,21 @@ export default function AppNavigator() {
               component={RepairStatusScreen}
               options={{ title: 'Repair Status' }}
             />
+            <Stack.Screen 
+              name="CustomerDashboard" 
+              component={DashboardScreen}
+              options={{ title: 'Customer Dashboard' }}
+            />
+            <Stack.Screen 
+              name="NewRepair" 
+              component={NewRepairScreen}
+              options={{ title: 'New Repair Request' }}
+            />
+            <Stack.Screen 
+              name="RepairDetails" 
+              component={RepairDetailsScreen}
+              options={{ title: 'Repair Details' }}
+            />
           </>
         ) : (
           // Shop Owner Stack
@@ -102,9 +119,16 @@ export default function AppNavigator() {
               component={AnalyticsScreen}
               options={{ title: 'Analytics' }}
             />
+            <Stack.Screen 
+              name="RepairDetails" 
+              component={RepairDetailsScreen}
+              options={{ title: 'Repair Details' }}
+            />
           </>
         )}
       </Stack.Navigator>
     </NavigationContainer>
   );
-} 
+};
+
+export default AppNavigator; 

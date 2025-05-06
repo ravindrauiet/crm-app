@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { useSelector } from 'react-redux';
 import { Card, Title, Paragraph, Button, Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen({ navigation }) {
   const theme = useTheme();
@@ -12,13 +13,13 @@ export default function HomeScreen({ navigation }) {
   // If user is not loaded yet, show loading state
   if (!user) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <Card style={styles.welcomeCard}>
           <Card.Content>
             <Title>Loading...</Title>
           </Card.Content>
         </Card>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -31,10 +32,10 @@ export default function HomeScreen({ navigation }) {
       <Button
         mode="contained"
         icon="tools"
-        onPress={() => navigation.navigate('ShopList')}
+        onPress={() => navigation.navigate('NewRepair')}
         style={styles.actionButton}
       >
-        Book Repair
+        New Repair
       </Button>
       <Button
         mode="contained"
@@ -54,6 +55,13 @@ export default function HomeScreen({ navigation }) {
         <Card style={styles.emptyCard}>
           <Card.Content>
             <Paragraph>No active repairs</Paragraph>
+            <Button 
+              mode="outlined" 
+              onPress={() => navigation.navigate('NewRepair')}
+              style={styles.newRepairButton}
+            >
+              Request New Repair
+            </Button>
           </Card.Content>
         </Card>
       ) : (
@@ -61,7 +69,10 @@ export default function HomeScreen({ navigation }) {
           <Card 
             key={repair.id} 
             style={styles.repairCard}
-            onPress={() => navigation.navigate('RepairStatus', { repairId: repair.id })}
+            onPress={() => navigation.navigate('RepairDetails', { 
+              repairId: repair.id,
+              userType: 'customer'
+            })}
           >
             <Card.Content>
               <View style={styles.repairHeader}>
@@ -82,18 +93,47 @@ export default function HomeScreen({ navigation }) {
     </View>
   );
 
-  return (
-    <ScrollView style={styles.container}>
-      <Card style={styles.welcomeCard}>
+  const renderServiceHistory = () => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Title style={styles.sectionTitle}>Service History</Title>
+        <Button 
+          mode="text" 
+          onPress={() => navigation.navigate('ServiceHistory')}
+        >
+          View All
+        </Button>
+      </View>
+      <Card style={styles.historyCard}>
         <Card.Content>
-          <Title>Welcome back!</Title>
-          <Paragraph>What would you like to do today?</Paragraph>
+          <Paragraph>View your past repairs and service history</Paragraph>
+          <Button 
+            mode="outlined" 
+            onPress={() => navigation.navigate('ServiceHistory')}
+            style={styles.viewHistoryButton}
+          >
+            View History
+          </Button>
         </Card.Content>
       </Card>
+    </View>
+  );
 
-      {renderQuickActions()}
-      {renderActiveRepairs()}
-    </ScrollView>
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView>
+        <Card style={styles.welcomeCard}>
+          <Card.Content>
+            <Title>Welcome back, {user.name}!</Title>
+            <Paragraph>What would you like to do today?</Paragraph>
+          </Card.Content>
+        </Card>
+
+        {renderQuickActions()}
+        {renderActiveRepairs()}
+        {renderServiceHistory()}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -143,8 +183,14 @@ const styles = StyleSheet.create({
   section: {
     padding: 16,
   },
-  sectionTitle: {
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
+  },
+  sectionTitle: {
+    marginBottom: 0,
   },
   repairCard: {
     marginBottom: 16,
@@ -157,5 +203,14 @@ const styles = StyleSheet.create({
   emptyCard: {
     padding: 16,
     alignItems: 'center',
+  },
+  newRepairButton: {
+    marginTop: 16,
+  },
+  historyCard: {
+    marginBottom: 16,
+  },
+  viewHistoryButton: {
+    marginTop: 16,
   },
 }); 
