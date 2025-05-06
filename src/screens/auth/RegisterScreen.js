@@ -135,6 +135,8 @@ export default function RegisterScreen({ navigation }) {
           onPress={handleRegister}
           loading={isLoading}
           style={styles.button}
+          disabled={!email || !password || !confirmPassword || 
+            (userType === 'shop_owner' && (!shopName || !address || !phone || !services))}
         >
           Register
         </Button>
