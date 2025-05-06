@@ -14,12 +14,14 @@ import BookingScreen from '../screens/customer/BookingScreen';
 import RepairStatusScreen from '../screens/customer/RepairStatusScreen';
 import DashboardScreen from '../screens/customer/DashboardScreen';
 import NewRepairScreen from '../screens/customer/NewRepairScreen';
+import CustomerProfileScreen from '../screens/customer/ProfileScreen';
 
 // Shop Owner Screens
 import ShopDashboardScreen from '../screens/shop/ShopDashboardScreen';
 import RepairTicketsScreen from '../screens/shop/RepairTicketsScreen';
 import CustomerListScreen from '../screens/shop/CustomerListScreen';
 import AnalyticsScreen from '../screens/shop/AnalyticsScreen';
+import ShopProfileScreen from '../screens/shop/ProfileScreen';
 
 // Shared Screens
 import RepairDetailsScreen from '../screens/shared/RepairDetailsScreen';
@@ -91,6 +93,11 @@ const AppNavigator = () => {
               options={{ title: 'New Repair Request' }}
             />
             <Stack.Screen 
+              name="CustomerProfile" 
+              component={CustomerProfileScreen}
+              options={{ title: 'Profile' }}
+            />
+            <Stack.Screen 
               name="RepairDetails" 
               component={RepairDetailsScreen}
               options={{ title: 'Repair Details' }}
@@ -118,6 +125,11 @@ const AppNavigator = () => {
               name="Analytics" 
               component={AnalyticsScreen}
               options={{ title: 'Analytics' }}
+            />
+            <Stack.Screen 
+              name="ShopProfile" 
+              component={ShopProfileScreen}
+              options={{ title: 'Shop Profile' }}
             />
             <Stack.Screen 
               name="RepairDetails" 

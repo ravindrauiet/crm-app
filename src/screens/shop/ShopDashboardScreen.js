@@ -1,10 +1,22 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Card, Button, useTheme, Chip } from 'react-native-paper';
+import { Text, Card, Button, useTheme, Chip, IconButton } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ShopDashboardScreen = ({ navigation }) => {
   const theme = useTheme();
+
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <IconButton
+          icon="store"
+          size={24}
+          onPress={() => navigation.navigate('ShopProfile')}
+        />
+      ),
+    });
+  }, [navigation]);
 
   const renderRepairCard = (repair) => (
     <Card key={repair.id} style={styles.repairCard}>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useSelector } from 'react-redux';
-import { Card, Title, Paragraph, Button, Text, useTheme } from 'react-native-paper';
+import { Card, Title, Paragraph, Button, Text, useTheme, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,6 +9,18 @@ export default function HomeScreen({ navigation }) {
   const theme = useTheme();
   const repairs = useSelector(state => state.repairs.repairs);
   const user = useSelector(state => state.auth.user);
+
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <IconButton
+          icon="account"
+          size={24}
+          onPress={() => navigation.navigate('CustomerProfile')}
+        />
+      ),
+    });
+  }, [navigation]);
 
   // If user is not loaded yet, show loading state
   if (!user) {
