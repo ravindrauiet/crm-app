@@ -1,5 +1,10 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { loginUser, registerUser, logoutUser, getCurrentUser } from '../../services/localStorage';
+import { 
+  loginUser, 
+  registerUser, 
+  logoutUser, 
+  getCurrentUser 
+} from '../../services/firebaseService';
 
 const initialState = {
   user: null,
@@ -45,9 +50,13 @@ export const logout = createAsyncThunk(
 
 export const checkAuth = createAsyncThunk(
   'auth/checkAuth',
-  async () => {
-    const user = await getCurrentUser();
-    return user;
+  async (_, { rejectWithValue }) => {
+    try {
+      const user = await getCurrentUser();
+      return user;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
   }
 );
 
@@ -58,6 +67,9 @@ const authSlice = createSlice({
     setUser: (state, action) => {
       state.user = action.payload;
       state.userType = action.payload.userType;
+    },
+    clearError: (state) => {
+      state.error = null;
     }
   },
   extraReducers: (builder) => {
@@ -99,9 +111,13 @@ const authSlice = createSlice({
       .addCase(checkAuth.fulfilled, (state, action) => {
         state.user = action.payload;
         state.userType = action.payload?.userType;
+      })
+      .addCase(checkAuth.rejected, (state) => {
+        state.user = null;
+        state.userType = null;
       });
   },
 });
 
-export const { setUser } = authSlice.actions;
+export const { setUser, clearError } = authSlice.actions;
 export default authSlice.reducer; 

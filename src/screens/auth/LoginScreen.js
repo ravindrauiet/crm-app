@@ -1,57 +1,29 @@
 import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { TextInput, Button, Text, Title, SegmentedButtons } from 'react-native-paper';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useDispatch } from 'react-redux';
-import { setUser } from '../../store/slices/authSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { login } from '../../store/slices/authSlice';
 
 export default function LoginScreen({ navigation }) {
   const dispatch = useDispatch();
+  const { isLoading, error } = useSelector(state => state.auth);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [userType, setUserTypeLocal] = useState('customer');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleLogin = async () => {
     try {
-      console.log('Login attempt started');
-      setIsLoading(true);
-      setError('');
-
-      // Get users from storage
-      const usersJson = await AsyncStorage.getItem('users');
-      console.log('Users from storage:', usersJson);
-      const users = usersJson ? JSON.parse(usersJson) : [];
-
-      // Find user with matching email and password
-      const user = users.find(u => u.email === email && u.password === password);
-      console.log('Found user:', user);
-
-      if (!user) {
-        throw new Error('Invalid email or password');
-      }
-
-      if (user.userType !== userType) {
+      const result = await dispatch(login({ email, password })).unwrap();
+      
+      // Check if user type matches
+      if (result.userType !== userType) {
         throw new Error('Invalid user type selected');
       }
-
-      // Store logged in user info
-      await AsyncStorage.setItem('currentUser', JSON.stringify(user));
-      console.log('User stored in AsyncStorage');
       
-      // Dispatch user to Redux store
-      dispatch(setUser(user));
-      console.log('User dispatched to Redux');
-      
-      // Navigate to appropriate screen based on user type
-      console.log('Navigating to:', userType === 'customer' ? 'CustomerHome' : 'ShopDashboard');
-      navigation.replace(userType === 'customer' ? 'CustomerHome' : 'ShopDashboard');
+      // Navigation will be handled by AppNavigator based on auth state
     } catch (error) {
+      // Error is already handled by the auth slice
       console.error('Login error:', error);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
     }
   };
 

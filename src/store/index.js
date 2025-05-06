@@ -1,12 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
-import repairReducer from './slices/repairSlice';
-import shopReducer from './slices/shopSlice';
+import repairsReducer from './slices/repairsSlice';
+import shopsReducer from './slices/shopsSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
-    repairs: repairReducer,
-    shops: shopReducer,
+    repairs: repairsReducer,
+    shops: shopsReducer,
   },
 }); 

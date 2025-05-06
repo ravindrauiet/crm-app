@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { TextInput, Button, Text, Title, SegmentedButtons } from 'react-native-paper';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useDispatch, useSelector } from 'react-redux';
+import { register } from '../../store/slices/authSlice';
 
 export default function RegisterScreen({ navigation }) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const dispatch = useDispatch();
+  const { isLoading, error } = useSelector(state => state.auth);
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,47 +21,28 @@ export default function RegisterScreen({ navigation }) {
 
   const handleRegister = async () => {
     if (password !== confirmPassword) {
-      setError("Passwords don't match!");
-      return;
+      throw new Error("Passwords don't match!");
     }
 
     try {
-      setIsLoading(true);
-      setError('');
+      const shopDetails = userType === 'shop_owner' ? {
+        name: shopName,
+        address,
+        phone,
+        services: services.split(',').map(service => service.trim()),
+      } : null;
 
-      // Get existing users or initialize empty array
-      const existingUsersJson = await AsyncStorage.getItem('users');
-      const existingUsers = existingUsersJson ? JSON.parse(existingUsersJson) : [];
-
-      // Check if email already exists
-      if (existingUsers.some(user => user.email === email)) {
-        throw new Error('Email already registered');
-      }
-
-      const newUser = {
-        id: Date.now().toString(),
-        email,
-        password, // Note: In a real app, you should hash the password
-        userType,
-        shopDetails: userType === 'shop_owner' ? {
-          name: shopName,
-          address,
-          phone,
-          services: services.split(',').map(service => service.trim()),
-          rating: 0,
-          totalRatings: 0,
-        } : null
-      };
-
-      // Add new user to array and save
-      existingUsers.push(newUser);
-      await AsyncStorage.setItem('users', JSON.stringify(existingUsers));
+      await dispatch(register({ 
+        email, 
+        password, 
+        userType, 
+        shopDetails 
+      })).unwrap();
       
-      navigation.replace('Login');
+      // Navigation will be handled by AppNavigator based on auth state
     } catch (error) {
-      setError(error.message || 'Registration failed');
-    } finally {
-      setIsLoading(false);
+      // Error is already handled by the auth slice
+      console.error('Registration error:', error);
     }
   };
 
@@ -68,6 +50,10 @@ export default function RegisterScreen({ navigation }) {
     <ScrollView>
       <View style={styles.container}>
         <Title style={styles.title}>Create Account</Title>
+
+        {error && (
+          <Text style={styles.error}>{error}</Text>
+        )}
 
         <SegmentedButtons
           value={userType}
@@ -152,10 +138,6 @@ export default function RegisterScreen({ navigation }) {
         >
           Register
         </Button>
-
-        {error && (
-          <Text style={styles.error}>{error}</Text>
-        )}
 
         <View style={styles.footer}>
           <Text>Already have an account? </Text>
