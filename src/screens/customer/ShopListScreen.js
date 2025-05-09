@@ -193,7 +193,7 @@ export default function ShopListScreen({ navigation }) {
           <Card
             key={shop.id}
             style={styles.shopCard}
-            onPress={() => navigation.navigate('Booking', { shopId: shop.id })}
+            onPress={() => navigation.navigate('ShopDetails', { shopId: shop.id })}
           >
             <Card.Content>
               <Title>{shop.name}</Title>
@@ -215,6 +215,10 @@ export default function ShopListScreen({ navigation }) {
                 <Text style={styles.debugText}>Shop ID: {shop.id}</Text>
               )}
             </Card.Content>
+            <Card.Actions>
+              <Button onPress={() => navigation.navigate('ShopDetails', { shopId: shop.id })}>View Details</Button>
+              <Button mode="contained" onPress={() => navigation.navigate('Booking', { shopId: shop.id })}>Book Repair</Button>
+            </Card.Actions>
           </Card>
         ))}
       </ScrollView>

@@ -15,6 +15,7 @@ import RepairStatusScreen from '../screens/customer/RepairStatusScreen';
 import DashboardScreen from '../screens/customer/DashboardScreen';
 import NewRepairScreen from '../screens/customer/NewRepairScreen';
 import CustomerProfileScreen from '../screens/customer/ProfileScreen';
+import ShopDetailsScreen from '../screens/customer/ShopDetailsScreen';
 
 // Shop Owner Screens
 import ShopDashboardScreen from '../screens/shop/ShopDashboardScreen';
@@ -73,6 +74,11 @@ const AppNavigator = () => {
               name="ShopList" 
               component={ShopListScreen}
               options={{ title: 'Repair Shops' }}
+            />
+            <Stack.Screen 
+              name="ShopDetails" 
+              component={ShopDetailsScreen}
+              options={{ title: 'Shop Details' }}
             />
             <Stack.Screen 
               name="Booking" 
