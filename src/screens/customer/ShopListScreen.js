@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { Searchbar, Card, Title, Paragraph, Chip, Button, ActivityIndicator, Text } from 'react-native-paper';
+import { Searchbar, Card, Title, Paragraph, Chip, Button, ActivityIndicator, Text, Divider } from 'react-native-paper';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { getShops } from '../../services/firebaseService';
@@ -9,12 +9,32 @@ import { setShops, setNearbyShops, setLoading, setError } from '../../store/slic
 
 export default function ShopListScreen({ navigation }) {
   const dispatch = useDispatch();
-  const { shops, isLoading, error } = useSelector(state => state.shops);
+  
+  // Check entire state
+  const reduxState = useSelector(state => state);
+  // Make sure we're using the correct reducer
+  const shopState = useSelector(state => state.shops);
+  const { shops, isLoading, error } = shopState || { shops: [], isLoading: false, error: null };
+  
+  // For debugging
+  console.log('Redux State:', reduxState);
+  console.log('Shop State:', shopState);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedServices, setSelectedServices] = useState([]);
   const [showMap, setShowMap] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [debugInfo, setDebugInfo] = useState(null);
+  const [rawShopData, setRawShopData] = useState(null);
+  const [showFullDebug, setShowFullDebug] = useState(false);
+
+  // Log whenever shops state changes
+  useEffect(() => {
+    console.log('Shop state changed:', shops);
+    if (shops && shops.length > 0) {
+      console.log('First shop in state:', JSON.stringify(shops[0]));
+    }
+  }, [shops]);
 
   useEffect(() => {
     fetchShops();
@@ -25,9 +45,34 @@ export default function ShopListScreen({ navigation }) {
     try {
       dispatch(setLoading(true));
       const shopsData = await getShops();
-      console.log('Fetched shops:', shopsData);
-      setDebugInfo(`Found ${shopsData.length} shops`);
-      dispatch(setShops(shopsData));
+      console.log('Fetched shops from API:', JSON.stringify(shopsData));
+      setRawShopData(shopsData);
+      
+      setDebugInfo(`Found ${shopsData.length} shops from API. Check console for details.`);
+      
+      if (shopsData && shopsData.length > 0) {
+        // Verify data has all required fields
+        const validShops = shopsData.filter(shop => 
+          shop && shop.name && shop.address && Array.isArray(shop.services)
+        );
+        
+        console.log(`Valid shops: ${validShops.length} of ${shopsData.length}`);
+        
+        if (validShops.length < shopsData.length) {
+          console.warn('Some shops are missing required fields:', 
+            shopsData.filter(shop => !shop || !shop.name || !shop.address || !Array.isArray(shop.services))
+          );
+        }
+        
+        dispatch(setShops(shopsData));
+        
+        // Verify shops are in state
+        setTimeout(() => {
+          console.log('Verifying shops in state:', reduxState.shops);
+        }, 500);
+      } else {
+        console.warn('No shops data returned from API');
+      }
     } catch (error) {
       console.error('Error fetching shops:', error);
       setDebugInfo(`Error: ${error.message}`);
@@ -85,7 +130,7 @@ export default function ShopListScreen({ navigation }) {
   const filteredShops = shops.filter(shop => {
     // Verify required fields exist
     if (!shop || !shop.name || !shop.address || !Array.isArray(shop.services)) {
-      console.warn('Shop with missing required fields:', shop);
+      console.warn('Shop with missing required fields:', JSON.stringify(shop));
       return false;
     }
     
@@ -106,15 +151,42 @@ export default function ShopListScreen({ navigation }) {
   )];
 
   const renderShopList = () => {
+    // Better debugging for empty shop list
+    if (shops.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No shops found in the database</Text>
+          <Text style={styles.emptySubtext}>Please try refreshing or check back later</Text>
+          <Button 
+            mode="contained" 
+            onPress={fetchShops}
+            style={styles.retryButton}
+          >
+            Refresh Shop List
+          </Button>
+        </View>
+      );
+    }
+    
     if (filteredShops.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <Text>No repair shops found</Text>
-          <Text>Try adjusting your search or filters</Text>
+          <Text style={styles.emptyText}>No repair shops match your criteria</Text>
+          <Text style={styles.emptySubtext}>Try adjusting your search or filters</Text>
+          {selectedServices.length > 0 && (
+            <Button 
+              mode="outlined" 
+              onPress={() => setSelectedServices([])}
+              style={styles.clearButton}
+            >
+              Clear Filters
+            </Button>
+          )}
         </View>
       );
     }
 
+    // Show the shops that match filters
     return (
       <ScrollView style={styles.listContainer}>
         {filteredShops.map(shop => (
@@ -213,11 +285,71 @@ export default function ShopListScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {debugInfo && __DEV__ && (
+      {__DEV__ && (
         <View style={styles.debugContainer}>
-          <Text style={styles.debugText}>{debugInfo}</Text>
-          <Text>Shop count: {shops.length}</Text>
-          <Text>Filtered count: {filteredShops.length}</Text>
+          <Text style={styles.debugText}>{debugInfo || 'No debug info'}</Text>
+          <Text>Shop count in state: {shops?.length || 0}</Text>
+          <Text>Filtered shop count: {filteredShops?.length || 0}</Text>
+          {rawShopData && (
+            <Text>Raw shop data count: {rawShopData.length}</Text>
+          )}
+          <View style={styles.debugButtonRow}>
+            <Button 
+              mode="contained" 
+              onPress={fetchShops} 
+              style={styles.debugButton}
+              compact
+            >
+              Refresh Shops
+            </Button>
+            <Button 
+              mode="outlined" 
+              onPress={() => setShowFullDebug(!showFullDebug)} 
+              style={styles.debugButton}
+              compact
+            >
+              {showFullDebug ? 'Hide Debug' : 'Show Debug'}
+            </Button>
+          </View>
+          
+          {showFullDebug && (
+            <>
+              <Divider style={styles.divider} />
+              <Text style={styles.debugTitle}>Redux State</Text>
+              {Object.keys(reduxState).map(key => (
+                <View key={key} style={styles.stateItem}>
+                  <Text style={styles.stateKey}>{key}: </Text>
+                  <Text>
+                    {Array.isArray(reduxState[key]) 
+                      ? `Array(${reduxState[key].length})` 
+                      : JSON.stringify(reduxState[key]).substring(0, 50)
+                    }
+                  </Text>
+                </View>
+              ))}
+              
+              <Text style={styles.debugTitle}>Raw Shop Data Sample</Text>
+              {rawShopData && rawShopData.length > 0 && (
+                <View style={styles.rawDataBox}>
+                  <Text>First shop: {JSON.stringify(rawShopData[0]).substring(0, 100)}...</Text>
+                </View>
+              )}
+              
+              <Button 
+                mode="contained" 
+                onPress={() => {
+                  // Force re-render with data
+                  if (rawShopData && rawShopData.length > 0) {
+                    console.log('Manually setting shops in state...');
+                    dispatch(setShops([...rawShopData]));
+                  }
+                }} 
+                style={[styles.debugButton, styles.forceButton]}
+              >
+                Force Update Redux
+              </Button>
+            </>
+          )}
         </View>
       )}
       
@@ -335,9 +467,58 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#990000',
   },
+  debugButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  debugButton: {
+    marginTop: 8,
+    height: 32,
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  divider: {
+    marginVertical: 8,
+  },
+  debugTitle: {
+    fontWeight: 'bold',
+    marginVertical: 4,
+  },
+  stateItem: {
+    marginLeft: 8,
+    marginBottom: 4,
+  },
+  stateKey: {
+    fontWeight: 'bold',
+  },
+  rawDataBox: {
+    backgroundColor: '#eeeeee',
+    padding: 8,
+    borderRadius: 4,
+    marginVertical: 8,
+  },
+  forceButton: {
+    backgroundColor: '#cc0000',
+  },
   emptyMapContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#666',
+  },
+  clearButton: {
+    marginTop: 8,
   },
 }); 

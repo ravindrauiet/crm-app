@@ -22,9 +22,11 @@ import RepairTicketsScreen from '../screens/shop/RepairTicketsScreen';
 import CustomerListScreen from '../screens/shop/CustomerListScreen';
 import AnalyticsScreen from '../screens/shop/AnalyticsScreen';
 import ShopProfileScreen from '../screens/shop/ProfileScreen';
+import EditShopProfileScreen from '../screens/shop/EditShopProfileScreen';
 
 // Shared Screens
 import RepairDetailsScreen from '../screens/shared/RepairDetailsScreen';
+import FirebaseDebug from '../components/FirebaseDebug';
 
 const Stack = createNativeStackNavigator();
 
@@ -132,9 +134,19 @@ const AppNavigator = () => {
               options={{ title: 'Shop Profile' }}
             />
             <Stack.Screen 
+              name="EditShopProfile" 
+              component={EditShopProfileScreen}
+              options={{ title: 'Edit Shop Profile' }}
+            />
+            <Stack.Screen 
               name="RepairDetails" 
               component={RepairDetailsScreen}
               options={{ title: 'Repair Details' }}
+            />
+            <Stack.Screen 
+              name="FirebaseDebug" 
+              component={FirebaseDebug}
+              options={{ title: 'Firebase Debug' }}
             />
           </>
         )}

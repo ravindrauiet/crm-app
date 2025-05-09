@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { TextInput, Button, Text, Title, SegmentedButtons } from 'react-native-paper';
+import { TextInput, Button, Text, Title, SegmentedButtons, ActivityIndicator } from 'react-native-paper';
 import { useDispatch, useSelector } from 'react-redux';
 import { register } from '../../store/slices/authSlice';
+import * as Location from 'expo-location';
 
 export default function RegisterScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -18,6 +19,49 @@ export default function RegisterScreen({ navigation }) {
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [services, setServices] = useState('');
+  const [locationStatus, setLocationStatus] = useState('');
+  const [coordinates, setCoordinates] = useState(null);
+  const [fetchingLocation, setFetchingLocation] = useState(false);
+
+  // Request location permission and get coordinates when userType is 'shop_owner'
+  useEffect(() => {
+    if (userType === 'shop_owner') {
+      getLocationPermission();
+    }
+  }, [userType]);
+
+  const getLocationPermission = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationStatus('Location permission denied. Shop will not appear on the map.');
+        return;
+      }
+      
+      setLocationStatus('Location permission granted. Getting coordinates...');
+      getLocation();
+    } catch (error) {
+      console.error('Error requesting location permission:', error);
+      setLocationStatus('Error getting location permission.');
+    }
+  };
+
+  const getLocation = async () => {
+    try {
+      setFetchingLocation(true);
+      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      setCoordinates({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+      setLocationStatus('Location coordinates acquired successfully.');
+    } catch (error) {
+      console.error('Error getting location:', error);
+      setLocationStatus('Error getting location. Please enter address carefully.');
+    } finally {
+      setFetchingLocation(false);
+    }
+  };
 
   const handleRegister = async () => {
     if (password !== confirmPassword) {
@@ -30,6 +74,8 @@ export default function RegisterScreen({ navigation }) {
         address,
         phone,
         services: services.split(',').map(service => service.trim()),
+        latitude: coordinates?.latitude || null,
+        longitude: coordinates?.longitude || null,
       } : null;
 
       await dispatch(register({ 
@@ -127,6 +173,28 @@ export default function RegisterScreen({ navigation }) {
               placeholder="e.g., Phone Repair, Screen Replacement"
               style={styles.input}
             />
+            
+            <View style={styles.locationContainer}>
+              <Text style={styles.locationLabel}>Shop Location:</Text>
+              {fetchingLocation ? (
+                <ActivityIndicator size="small" />
+              ) : (
+                <>
+                  <Text style={coordinates ? styles.locationSuccess : styles.locationStatus}>
+                    {coordinates 
+                      ? `Location set: ${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)}` 
+                      : locationStatus}
+                  </Text>
+                  <Button 
+                    mode="outlined" 
+                    onPress={getLocation} 
+                    style={styles.locationButton}
+                  >
+                    Get Current Location
+                  </Button>
+                </>
+              )}
+            </View>
           </>
         )}
 
@@ -185,4 +253,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
   },
+  locationContainer: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+  },
+  locationLabel: {
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  locationStatus: {
+    marginBottom: 8,
+  },
+  locationSuccess: {
+    color: 'green',
+    marginBottom: 8,
+  },
+  locationButton: {
+    marginTop: 8,
+  }
 }); 

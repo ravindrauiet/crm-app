@@ -219,10 +219,13 @@ export const getRepairs = async (userId, userType) => {
 // Shops functions
 export const getShops = async () => {
   try {
+    console.log('Fetching shops from Firebase...');
     // Query users who are shop owners
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where('userType', '==', 'shop_owner'));
     const querySnapshot = await withRetry(() => getDocs(q));
+    
+    console.log(`Found ${querySnapshot.size} shop owners`);
     
     // For each shop owner, fetch their shop details
     const shopOwners = querySnapshot.docs.map(doc => ({
@@ -234,14 +237,33 @@ export const getShops = async () => {
     const shopsWithDetails = await Promise.all(
       shopOwners.map(async (owner) => {
         try {
+          console.log(`Fetching shop details for owner: ${owner.id}`);
           const shopDoc = await withRetry(() => getDoc(doc(db, 'shops', owner.id)));
           if (shopDoc.exists()) {
             // Combine user data with shop data
-            return convertToSerializable({
+            const shopData = shopDoc.data();
+            console.log(`Shop data found:`, shopData);
+            
+            // Make sure required fields exist
+            if (!shopData.name || !shopData.address) {
+              console.warn(`Shop ${owner.id} missing required fields`);
+            }
+            
+            if (!Array.isArray(shopData.services)) {
+              console.warn(`Shop ${owner.id} has invalid services:`, shopData.services);
+              // Provide default services if missing
+              shopData.services = shopData.services ? [shopData.services] : ['General Repair'];
+            }
+            
+            const combinedData = {
               id: owner.id,
               email: owner.email,
-              ...shopDoc.data()
-            });
+              ...shopData,
+            };
+            
+            return convertToSerializable(combinedData);
+          } else {
+            console.warn(`No shop document found for owner: ${owner.id}`);
           }
           return null;
         } catch (error) {
@@ -252,7 +274,9 @@ export const getShops = async () => {
     );
     
     // Filter out null values (shop owners without shop details)
-    return shopsWithDetails.filter(shop => shop !== null);
+    const validShops = shopsWithDetails.filter(shop => shop !== null);
+    console.log(`Returning ${validShops.length} valid shops`);
+    return validShops;
   } catch (error) {
     console.error('Get shops error:', error);
     throw new Error('Failed to get shops');

@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen({ navigation }) {
   const theme = useTheme();
-  const repairs = useSelector(state => state.repairs.repairs);
+  const repairs = useSelector(state => state.repair?.repairs || []);
   const user = useSelector(state => state.auth.user);
 
   React.useLayoutEffect(() => {
