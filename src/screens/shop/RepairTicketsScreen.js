@@ -1,255 +1,421 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
+import { Text, Surface, Button, Chip, useTheme, IconButton, Menu, Divider, Portal, Modal, TextInput } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
-import { Card, Title, Paragraph, Button, Chip, SegmentedButtons, TextInput, Portal, Modal } from 'react-native-paper';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import moment from 'moment';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
-export default function RepairTicketsScreen() {
+export default function RepairTicketsScreen({ navigation }) {
+  const theme = useTheme();
   const user = useSelector(state => state.auth.user);
+  
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [repairs, setRepairs] = useState([]);
-  const [filteredRepairs, setFilteredRepairs] = useState([]);
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [menuVisible, setMenuVisible] = useState(false);
   const [selectedRepair, setSelectedRepair] = useState(null);
-  const [isUpdateModalVisible, setIsUpdateModalVisible] = useState(false);
-  const [estimatedCompletion, setEstimatedCompletion] = useState('');
-  const [price, setPrice] = useState('');
+  const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [noteModalVisible, setNoteModalVisible] = useState(false);
+  const [note, setNote] = useState('');
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     fetchRepairs();
-  }, []);
-
-  useEffect(() => {
-    filterRepairs();
-  }, [selectedStatus, searchQuery, repairs]);
+  }, [filter]);
 
   const fetchRepairs = async () => {
     try {
-      const repairsJson = await AsyncStorage.getItem('repairs');
-      const allRepairs = JSON.parse(repairsJson || '[]');
-      
-      // Filter repairs for this shop
-      const shopRepairs = allRepairs.filter(repair => repair.shopId === user.id);
-      setRepairs(shopRepairs);
+      setLoading(true);
+      const repairsRef = collection(db, 'repairs');
+      let q = query(
+        repairsRef,
+        where('shopId', '==', user.id),
+        orderBy('createdAt', 'desc')
+      );
+
+      if (filter !== 'all') {
+        q = query(q, where('status', '==', filter));
+      }
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const repairsList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setRepairs(repairsList);
+        setLoading(false);
+      });
+
+      return unsubscribe;
     } catch (error) {
       console.error('Error fetching repairs:', error);
+      Alert.alert('Error', 'Failed to load repairs');
+      setLoading(false);
     }
   };
 
-  const filterRepairs = () => {
-    let filtered = [...repairs];
-    
-    if (selectedStatus !== 'all') {
-      filtered = filtered.filter(repair => repair.status === selectedStatus);
-    }
-    
-    if (searchQuery) {
-      filtered = filtered.filter(repair => 
-        repair.customerEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        repair.deviceType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        repair.deviceModel.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    
-    setFilteredRepairs(filtered);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchRepairs();
+    setRefreshing(false);
   };
 
-  const handleUpdateStatus = async (repair, newStatus) => {
+  const handleStatusChange = async (newStatus) => {
+    if (!selectedRepair) return;
+
     try {
-      // Get all repairs
-      const repairsJson = await AsyncStorage.getItem('repairs');
-      const allRepairs = JSON.parse(repairsJson || '[]');
-      
-      // Find and update the repair
-      const updatedRepairs = allRepairs.map(r => {
-        if (r.id === repair.id) {
-          const updateData = { 
-            ...r,
-            status: newStatus
-          };
-          
-          if (newStatus === 'in_progress' && !r.startedAt) {
-            updateData.startedAt = new Date().toISOString();
-          } else if (newStatus === 'completed' && !r.completedAt) {
-            updateData.completedAt = new Date().toISOString();
-          }
-          
-          return updateData;
-        }
-        return r;
+      setUpdating(true);
+      const repairRef = doc(db, 'repairs', selectedRepair.id);
+      await updateDoc(repairRef, {
+        status: newStatus,
+        updatedAt: Timestamp.now()
       });
-      
-      // Save updated repairs
-      await AsyncStorage.setItem('repairs', JSON.stringify(updatedRepairs));
-      fetchRepairs();
+      setStatusModalVisible(false);
+      Alert.alert('Success', 'Repair status updated successfully');
     } catch (error) {
       console.error('Error updating repair status:', error);
+      Alert.alert('Error', 'Failed to update repair status');
+    } finally {
+      setUpdating(false);
     }
   };
 
-  const handleUpdateRepair = async () => {
+  const handleAddNote = async () => {
+    if (!selectedRepair || !note.trim()) return;
+
     try {
-      // Get all repairs
-      const repairsJson = await AsyncStorage.getItem('repairs');
-      const allRepairs = JSON.parse(repairsJson || '[]');
-      
-      // Find and update the repair
-      const updatedRepairs = allRepairs.map(r => {
-        if (r.id === selectedRepair.id) {
-          return {
-            ...r,
-            estimatedCompletion: moment(estimatedCompletion).toISOString(),
-            price: parseFloat(price)
-          };
-        }
-        return r;
+      setUpdating(true);
+      const repairRef = doc(db, 'repairs', selectedRepair.id);
+      const newNote = {
+        text: note.trim(),
+        timestamp: Timestamp.now(),
+        addedBy: user.id
+      };
+
+      await updateDoc(repairRef, {
+        notes: [...(selectedRepair.notes || []), newNote],
+        updatedAt: Timestamp.now()
       });
-      
-      // Save updated repairs
-      await AsyncStorage.setItem('repairs', JSON.stringify(updatedRepairs));
-      
-      setIsUpdateModalVisible(false);
-      fetchRepairs();
+
+      setNote('');
+      setNoteModalVisible(false);
+      Alert.alert('Success', 'Note added successfully');
     } catch (error) {
-      console.error('Error updating repair details:', error);
+      console.error('Error adding note:', error);
+      Alert.alert('Error', 'Failed to add note');
+    } finally {
+      setUpdating(false);
     }
   };
 
-  const renderUpdateModal = () => (
-    <Portal>
-      <Modal
-        visible={isUpdateModalVisible}
-        onDismiss={() => setIsUpdateModalVisible(false)}
-        contentContainerStyle={styles.modalContainer}
-      >
-        <Title>Update Repair Details</Title>
-        <TextInput
-          label="Estimated Completion Date"
-          value={estimatedCompletion}
-          onChangeText={setEstimatedCompletion}
-          mode="outlined"
-          style={styles.input}
-          placeholder="YYYY-MM-DD"
-        />
-        <TextInput
-          label="Price"
-          value={price}
-          onChangeText={setPrice}
-          mode="outlined"
-          style={styles.input}
-          keyboardType="numeric"
-        />
-        <Button mode="contained" onPress={handleUpdateRepair}>
-          Update
-        </Button>
-      </Modal>
-    </Portal>
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'pending': return '#FFA000';
+      case 'in_progress': return '#1976D2';
+      case 'completed': return '#388E3C';
+      case 'cancelled': return '#D32F2F';
+      default: return '#757575';
+    }
+  };
+
+  const renderRepairCard = (repair) => (
+    <Surface key={repair.id} style={styles.repairCard}>
+      <View style={styles.repairHeader}>
+        <View style={styles.repairInfo}>
+          <Text variant="titleMedium">{repair.deviceType}</Text>
+          <Chip
+            mode="flat"
+            textStyle={{ color: '#fff' }}
+            style={[styles.statusChip, { backgroundColor: getStatusColor(repair.status) }]}
+          >
+            {repair.status.replace('_', ' ')}
+          </Chip>
+        </View>
+        <Menu
+          visible={menuVisible && selectedRepair?.id === repair.id}
+          onDismiss={() => setMenuVisible(false)}
+          anchor={
+            <IconButton
+              icon="dots-vertical"
+              onPress={() => {
+                setSelectedRepair(repair);
+                setMenuVisible(true);
+              }}
+            />
+          }
+        >
+          <Menu.Item
+            onPress={() => {
+              setMenuVisible(false);
+              setStatusModalVisible(true);
+            }}
+            title="Update Status"
+            leadingIcon="update"
+          />
+          <Menu.Item
+            onPress={() => {
+              setMenuVisible(false);
+              setNoteModalVisible(true);
+            }}
+            title="Add Note"
+            leadingIcon="note-plus"
+          />
+          <Menu.Item
+            onPress={() => {
+              setMenuVisible(false);
+              navigation.navigate('RepairDetails', { repairId: repair.id });
+            }}
+            title="View Details"
+            leadingIcon="information"
+          />
+        </Menu>
+      </View>
+
+      <Divider style={styles.divider} />
+
+      <View style={styles.repairDetails}>
+        <View style={styles.detailRow}>
+          <MaterialCommunityIcons name="account" size={20} color="#666" />
+          <Text variant="bodyMedium" style={styles.detailText}>
+            {repair.customerName}
+          </Text>
+        </View>
+        <View style={styles.detailRow}>
+          <MaterialCommunityIcons name="phone" size={20} color="#666" />
+          <Text variant="bodyMedium" style={styles.detailText}>
+            {repair.customerPhone}
+          </Text>
+        </View>
+        <View style={styles.detailRow}>
+          <MaterialCommunityIcons name="calendar" size={20} color="#666" />
+          <Text variant="bodyMedium" style={styles.detailText}>
+            {repair.createdAt?.toDate().toLocaleDateString()}
+          </Text>
+        </View>
+      </View>
+
+      {repair.notes && repair.notes.length > 0 && (
+        <View style={styles.notesSection}>
+          <Text variant="titleSmall" style={styles.notesTitle}>Latest Note</Text>
+          <Text variant="bodySmall" style={styles.noteText}>
+            {repair.notes[repair.notes.length - 1].text}
+          </Text>
+        </View>
+      )}
+    </Surface>
   );
 
   return (
-    <ScrollView style={styles.container}>
-      <TextInput
-        placeholder="Search repairs..."
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        mode="outlined"
-        style={styles.searchInput}
-      />
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.filterContainer}>
+          <Chip
+            selected={filter === 'all'}
+            onPress={() => setFilter('all')}
+            style={styles.filterChip}
+          >
+            All
+          </Chip>
+          <Chip
+            selected={filter === 'pending'}
+            onPress={() => setFilter('pending')}
+            style={styles.filterChip}
+          >
+            Pending
+          </Chip>
+          <Chip
+            selected={filter === 'in_progress'}
+            onPress={() => setFilter('in_progress')}
+            style={styles.filterChip}
+          >
+            In Progress
+          </Chip>
+          <Chip
+            selected={filter === 'completed'}
+            onPress={() => setFilter('completed')}
+            style={styles.filterChip}
+          >
+            Completed
+          </Chip>
+        </View>
+      </View>
 
-      <SegmentedButtons
-        value={selectedStatus}
-        onValueChange={setSelectedStatus}
-        buttons={[
-          { value: 'all', label: 'All' },
-          { value: 'pending', label: 'Pending' },
-          { value: 'in_progress', label: 'In Progress' },
-          { value: 'completed', label: 'Completed' }
-        ]}
-        style={styles.segmentedButtons}
-      />
+      <ScrollView
+        style={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
+        {repairs.map(renderRepairCard)}
+      </ScrollView>
 
-      {filteredRepairs.map(repair => (
-        <Card key={repair.id} style={styles.card}>
-          <Card.Content>
-            <Title>{repair.deviceType} - {repair.deviceModel}</Title>
-            <Paragraph>Customer: {repair.customerEmail}</Paragraph>
-            <Paragraph>Status: {repair.status}</Paragraph>
-            <View style={styles.services}>
-              {repair.services.map((service, index) => (
-                <Chip key={index} style={styles.chip}>{service}</Chip>
-              ))}
-            </View>
-            <Paragraph>Issue: {repair.issueDescription}</Paragraph>
-            {repair.estimatedCompletion && (
-              <Paragraph>
-                Estimated Completion: {moment(repair.estimatedCompletion.toDate()).format('MMM DD, YYYY')}
-              </Paragraph>
-            )}
-            {repair.price && (
-              <Paragraph>Price: ${repair.price.toFixed(2)}</Paragraph>
-            )}
-          </Card.Content>
-          <Card.Actions>
-            {repair.status === 'pending' && (
-              <>
-                <Button onPress={() => {
-                  setSelectedRepair(repair);
-                  setEstimatedCompletion('');
-                  setPrice('');
-                  setIsUpdateModalVisible(true);
-                }}>
-                  Set Details
-                </Button>
-                <Button onPress={() => handleUpdateStatus(repair, 'in_progress')}>
-                  Start Repair
-                </Button>
-              </>
-            )}
-            {repair.status === 'in_progress' && (
-              <Button onPress={() => handleUpdateStatus(repair, 'completed')}>
-                Mark Completed
-              </Button>
-            )}
-          </Card.Actions>
-        </Card>
-      ))}
+      <Portal>
+        <Modal
+          visible={statusModalVisible}
+          onDismiss={() => setStatusModalVisible(false)}
+          contentContainerStyle={styles.modal}
+        >
+          <Text variant="titleLarge" style={styles.modalTitle}>Update Status</Text>
+          <View style={styles.statusButtons}>
+            <Button
+              mode="outlined"
+              onPress={() => handleStatusChange('pending')}
+              loading={updating}
+              disabled={updating}
+              style={styles.statusButton}
+            >
+              Pending
+            </Button>
+            <Button
+              mode="outlined"
+              onPress={() => handleStatusChange('in_progress')}
+              loading={updating}
+              disabled={updating}
+              style={styles.statusButton}
+            >
+              In Progress
+            </Button>
+            <Button
+              mode="outlined"
+              onPress={() => handleStatusChange('completed')}
+              loading={updating}
+              disabled={updating}
+              style={styles.statusButton}
+            >
+              Completed
+            </Button>
+            <Button
+              mode="outlined"
+              onPress={() => handleStatusChange('cancelled')}
+              loading={updating}
+              disabled={updating}
+              style={styles.statusButton}
+            >
+              Cancelled
+            </Button>
+          </View>
+        </Modal>
 
-      {renderUpdateModal()}
-    </ScrollView>
+        <Modal
+          visible={noteModalVisible}
+          onDismiss={() => setNoteModalVisible(false)}
+          contentContainerStyle={styles.modal}
+        >
+          <Text variant="titleLarge" style={styles.modalTitle}>Add Note</Text>
+          <TextInput
+            label="Note"
+            value={note}
+            onChangeText={setNote}
+            multiline
+            numberOfLines={4}
+            style={styles.noteInput}
+          />
+          <Button
+            mode="contained"
+            onPress={handleAddNote}
+            loading={updating}
+            disabled={updating || !note.trim()}
+            style={styles.noteButton}
+          >
+            Add Note
+          </Button>
+        </Modal>
+      </Portal>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
+  },
+  header: {
     padding: 16,
+    backgroundColor: '#fff',
+    elevation: 2,
   },
-  searchInput: {
-    marginBottom: 16,
-  },
-  segmentedButtons: {
-    marginBottom: 16,
-  },
-  card: {
-    marginBottom: 16,
-  },
-  services: {
+  filterContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginVertical: 8,
+    gap: 8,
   },
-  chip: {
-    margin: 4,
+  filterChip: {
+    marginRight: 8,
   },
-  modalContainer: {
-    backgroundColor: 'white',
-    padding: 20,
-    margin: 20,
+  content: {
+    flex: 1,
+    padding: 16,
+  },
+  repairCard: {
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  repairHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  repairInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusChip: {
+    height: 24,
+  },
+  divider: {
+    marginVertical: 12,
+  },
+  repairDetails: {
+    gap: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailText: {
+    color: '#666',
+  },
+  notesSection: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
     borderRadius: 8,
   },
-  input: {
+  notesTitle: {
+    marginBottom: 4,
+  },
+  noteText: {
+    color: '#666',
+  },
+  modal: {
+    backgroundColor: '#fff',
+    padding: 20,
+    margin: 20,
+    borderRadius: 12,
+  },
+  modalTitle: {
     marginBottom: 16,
+    textAlign: 'center',
+  },
+  statusButtons: {
+    gap: 8,
+  },
+  statusButton: {
+    marginBottom: 8,
+  },
+  noteInput: {
+    marginBottom: 16,
+  },
+  noteButton: {
+    borderRadius: 8,
   },
 }); 

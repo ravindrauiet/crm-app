@@ -1,276 +1,304 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { TextInput, Button, Text, Title, SegmentedButtons, ActivityIndicator } from 'react-native-paper';
-import { useDispatch, useSelector } from 'react-redux';
-import { register } from '../../store/slices/authSlice';
-import * as Location from 'expo-location';
+import React, { useState } from 'react';
+import { View, StyleSheet, Image, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { Text, TextInput, Button, Surface, useTheme, IconButton, HelperText, SegmentedButtons } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDispatch } from 'react-redux';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../../config/firebase';
+import { setUser } from '../../store/slices/authSlice';
 
 export default function RegisterScreen({ navigation }) {
+  const theme = useTheme();
   const dispatch = useDispatch();
-  const { isLoading, error } = useSelector(state => state.auth);
   
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const [userType, setUserType] = useState('customer');
-  
-  // Additional fields for shop owners
-  const [shopName, setShopName] = useState('');
-  const [address, setAddress] = useState('');
-  const [phone, setPhone] = useState('');
-  const [services, setServices] = useState('');
-  const [locationStatus, setLocationStatus] = useState('');
-  const [coordinates, setCoordinates] = useState(null);
-  const [fetchingLocation, setFetchingLocation] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
 
-  // Request location permission and get coordinates when userType is 'shop_owner'
-  useEffect(() => {
-    if (userType === 'shop_owner') {
-      getLocationPermission();
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.name.trim()) {
+      newErrors.name = 'Name is required';
     }
-  }, [userType]);
-
-  const getLocationPermission = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLocationStatus('Location permission denied. Shop will not appear on the map.');
-        return;
-      }
-      
-      setLocationStatus('Location permission granted. Getting coordinates...');
-      getLocation();
-    } catch (error) {
-      console.error('Error requesting location permission:', error);
-      setLocationStatus('Error getting location permission.');
+    
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Invalid email address';
     }
-  };
-
-  const getLocation = async () => {
-    try {
-      setFetchingLocation(true);
-      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      setCoordinates({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
-      setLocationStatus('Location coordinates acquired successfully.');
-    } catch (error) {
-      console.error('Error getting location:', error);
-      setLocationStatus('Error getting location. Please enter address carefully.');
-    } finally {
-      setFetchingLocation(false);
+    
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!/^\+?[\d\s-]{10,}$/.test(formData.phone)) {
+      newErrors.phone = 'Invalid phone number';
     }
+    
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+    
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleRegister = async () => {
-    if (password !== confirmPassword) {
-      throw new Error("Passwords don't match!");
+    if (!validateForm()) {
+      return;
     }
 
     try {
-      const shopDetails = userType === 'shop_owner' ? {
-        name: shopName,
-        address,
-        phone,
-        services: services.split(',').map(service => service.trim()),
-        latitude: coordinates?.latitude || null,
-        longitude: coordinates?.longitude || null,
-      } : null;
-
-      await dispatch(register({ 
-        email, 
-        password, 
-        userType, 
-        shopDetails 
-      })).unwrap();
+      setLoading(true);
       
-      // Navigation will be handled by AppNavigator based on auth state
+      // Create user account
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
+
+      // Update user profile
+      await updateProfile(userCredential.user, {
+        displayName: formData.name
+      });
+
+      // Create user document in Firestore
+      const userDoc = {
+        id: userCredential.user.uid,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        userType: userType,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      await setDoc(doc(db, userType === 'customer' ? 'customers' : 'shops', userCredential.user.uid), userDoc);
+
+      // Update Redux store
+      dispatch(setUser({
+        id: userCredential.user.uid,
+        email: userCredential.user.email,
+        displayName: formData.name,
+        userType: userType
+      }));
+
+      Alert.alert('Success', 'Account created successfully');
     } catch (error) {
-      // Error is already handled by the auth slice
       console.error('Registration error:', error);
+      let errorMessage = 'Failed to create account';
+      
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          errorMessage = 'Email is already registered';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Invalid email address';
+          break;
+        case 'auth/weak-password':
+          errorMessage = 'Password is too weak';
+          break;
+      }
+      
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <ScrollView>
-      <View style={styles.container}>
-        <Title style={styles.title}>Create Account</Title>
-
-        {error && (
-          <Text style={styles.error}>{error}</Text>
-        )}
-
-        <SegmentedButtons
-          value={userType}
-          onValueChange={setUserType}
-          buttons={[
-            { value: 'customer', label: 'Customer' },
-            { value: 'shop_owner', label: 'Shop Owner' }
-          ]}
-          style={styles.segment}
-        />
-        
-        <TextInput
-          label="Email"
-          value={email}
-          onChangeText={setEmail}
-          mode="outlined"
-          autoCapitalize="none"
-          style={styles.input}
-        />
-        
-        <TextInput
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          mode="outlined"
-          secureTextEntry
-          style={styles.input}
-        />
-
-        <TextInput
-          label="Confirm Password"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          mode="outlined"
-          secureTextEntry
-          style={styles.input}
-        />
-
-        {userType === 'shop_owner' && (
-          <>
-            <TextInput
-              label="Shop Name"
-              value={shopName}
-              onChangeText={setShopName}
-              mode="outlined"
-              style={styles.input}
-            />
-
-            <TextInput
-              label="Address"
-              value={address}
-              onChangeText={setAddress}
-              mode="outlined"
-              style={styles.input}
-            />
-
-            <TextInput
-              label="Phone Number"
-              value={phone}
-              onChangeText={setPhone}
-              mode="outlined"
-              keyboardType="phone-pad"
-              style={styles.input}
-            />
-
-            <TextInput
-              label="Services (comma-separated)"
-              value={services}
-              onChangeText={setServices}
-              mode="outlined"
-              placeholder="e.g., Phone Repair, Screen Replacement"
-              style={styles.input}
-            />
-            
-            <View style={styles.locationContainer}>
-              <Text style={styles.locationLabel}>Shop Location:</Text>
-              {fetchingLocation ? (
-                <ActivityIndicator size="small" />
-              ) : (
-                <>
-                  <Text style={coordinates ? styles.locationSuccess : styles.locationStatus}>
-                    {coordinates 
-                      ? `Location set: ${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)}` 
-                      : locationStatus}
-                  </Text>
-                  <Button 
-                    mode="outlined" 
-                    onPress={getLocation} 
-                    style={styles.locationButton}
-                  >
-                    Get Current Location
-                  </Button>
-                </>
-              )}
-            </View>
-          </>
-        )}
-
-        <Button
-          mode="contained"
-          onPress={handleRegister}
-          loading={isLoading}
-          style={styles.button}
-          disabled={!email || !password || !confirmPassword || 
-            (userType === 'shop_owner' && (!shopName || !address || !phone || !services))}
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoid}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
         >
-          Register
-        </Button>
+          <Surface style={styles.formContainer}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('../../../assets/icon.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+              <Text variant="headlineMedium" style={styles.title}>
+                Create Account
+              </Text>
+              <Text variant="bodyLarge" style={styles.subtitle}>
+                Sign up to get started
+              </Text>
+            </View>
 
-        <View style={styles.footer}>
-          <Text>Already have an account? </Text>
-          <Button
-            mode="text"
-            onPress={() => navigation.navigate('Login')}
-          >
-            Login
-          </Button>
-        </View>
-      </View>
-    </ScrollView>
+            <SegmentedButtons
+              value={userType}
+              onValueChange={setUserType}
+              buttons={[
+                { value: 'customer', label: 'Customer' },
+                { value: 'shop_owner', label: 'Shop Owner' }
+              ]}
+              style={styles.segment}
+            />
+
+            <View style={styles.inputContainer}>
+              <TextInput
+                label="Full Name"
+                value={formData.name}
+                onChangeText={text => setFormData(prev => ({ ...prev, name: text }))}
+                error={!!errors.name}
+                style={styles.input}
+              />
+              <HelperText type="error" visible={!!errors.name}>
+                {errors.name}
+              </HelperText>
+
+              <TextInput
+                label="Email"
+                value={formData.email}
+                onChangeText={text => setFormData(prev => ({ ...prev, email: text }))}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                error={!!errors.email}
+                style={styles.input}
+              />
+              <HelperText type="error" visible={!!errors.email}>
+                {errors.email}
+              </HelperText>
+
+              <TextInput
+                label="Phone"
+                value={formData.phone}
+                onChangeText={text => setFormData(prev => ({ ...prev, phone: text }))}
+                keyboardType="phone-pad"
+                error={!!errors.phone}
+                style={styles.input}
+              />
+              <HelperText type="error" visible={!!errors.phone}>
+                {errors.phone}
+              </HelperText>
+
+              <TextInput
+                label="Password"
+                value={formData.password}
+                onChangeText={text => setFormData(prev => ({ ...prev, password: text }))}
+                secureTextEntry={!showPassword}
+                error={!!errors.password}
+                style={styles.input}
+                right={
+                  <TextInput.Icon
+                    icon={showPassword ? 'eye-off' : 'eye'}
+                    onPress={() => setShowPassword(!showPassword)}
+                  />
+                }
+              />
+              <HelperText type="error" visible={!!errors.password}>
+                {errors.password}
+              </HelperText>
+
+              <TextInput
+                label="Confirm Password"
+                value={formData.confirmPassword}
+                onChangeText={text => setFormData(prev => ({ ...prev, confirmPassword: text }))}
+                secureTextEntry={!showPassword}
+                error={!!errors.confirmPassword}
+                style={styles.input}
+              />
+              <HelperText type="error" visible={!!errors.confirmPassword}>
+                {errors.confirmPassword}
+              </HelperText>
+            </View>
+
+            <Button
+              mode="contained"
+              onPress={handleRegister}
+              loading={loading}
+              disabled={loading}
+              style={styles.registerButton}
+            >
+              Create Account
+            </Button>
+
+            <Button
+              mode="text"
+              onPress={() => navigation.navigate('Login')}
+              style={styles.loginButton}
+            >
+              Already have an account? Sign In
+            </Button>
+          </Surface>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    backgroundColor: '#f8f9fa',
+  },
+  keyboardAvoid: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 24,
+  formContainer: {
+    margin: 16,
+    padding: 24,
+    borderRadius: 16,
+    elevation: 2,
+  },
+  logoContainer: {
+    alignItems: 'center',
     marginBottom: 24,
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    marginBottom: 16,
+  },
+  title: {
+    marginBottom: 8,
     textAlign: 'center',
   },
-  input: {
-    marginBottom: 16,
+  subtitle: {
+    color: '#666',
+    textAlign: 'center',
   },
   segment: {
     marginBottom: 24,
   },
-  button: {
-    marginBottom: 16,
+  inputContainer: {
+    marginBottom: 24,
   },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  input: {
+    marginBottom: 4,
+    backgroundColor: '#fff',
   },
-  error: {
-    color: 'red',
-    textAlign: 'center',
+  registerButton: {
     marginBottom: 16,
-  },
-  locationContainer: {
-    marginBottom: 16,
-    padding: 12,
-    backgroundColor: '#f0f0f0',
     borderRadius: 8,
   },
-  locationLabel: {
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  locationStatus: {
-    marginBottom: 8,
-  },
-  locationSuccess: {
-    color: 'green',
-    marginBottom: 8,
-  },
-  locationButton: {
+  loginButton: {
     marginTop: 8,
-  }
+  },
 }); 

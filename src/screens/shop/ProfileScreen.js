@@ -1,195 +1,284 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { useSelector, useDispatch } from 'react-redux';
-import { 
-  Card, 
-  Title, 
-  Paragraph, 
-  Button, 
-  Avatar, 
-  List, 
-  Divider,
-  useTheme,
-  Chip
-} from 'react-native-paper';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Alert, Image } from 'react-native';
+import { Text, Surface, Button, useTheme, IconButton, Divider, List } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSelector, useDispatch } from 'react-redux';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { logout } from '../../store/slices/authSlice';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import { signOut } from '../../store/slices/authSlice';
 
-const ProfileScreen = ({ navigation }) => {
+export default function ProfileScreen({ navigation }) {
   const theme = useTheme();
   const dispatch = useDispatch();
   const user = useSelector(state => state.auth.user);
-  const shopDetails = user?.shopDetails;
+  
+  const [loading, setLoading] = useState(true);
+  const [shopData, setShopData] = useState(null);
+  const [stats, setStats] = useState({
+    totalRepairs: 0,
+    completedRepairs: 0,
+    totalRevenue: 0,
+    averageRating: 0
+  });
 
-  const handleLogout = () => {
-    dispatch(logout());
-  };
+  useEffect(() => {
+    fetchShopProfile();
+  }, []);
 
-  const renderShopInfo = () => {
-    if (!shopDetails) {
-      return (
-        <Card style={styles.card}>
-          <Card.Content>
-            <Title>Loading...</Title>
-          </Card.Content>
-        </Card>
-      );
+  const fetchShopProfile = async () => {
+    try {
+      setLoading(true);
+      const shopRef = doc(db, 'shops', user.id);
+      const shopDoc = await getDoc(shopRef);
+      
+      if (shopDoc.exists()) {
+        setShopData(shopDoc.data());
+        // Calculate stats from shop data
+        const shopStats = shopDoc.data();
+        setStats({
+          totalRepairs: shopStats.totalRepairs || 0,
+          completedRepairs: shopStats.completedRepairs || 0,
+          totalRevenue: shopStats.totalRevenue || 0,
+          averageRating: shopStats.averageRating || 0
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching shop profile:', error);
+      Alert.alert('Error', 'Failed to load shop profile');
+    } finally {
+      setLoading(false);
     }
-
-    const initials = shopDetails.name ? shopDetails.name.split(' ').map(n => n[0]).join('') : '?';
-    
-    return (
-      <Card style={styles.card}>
-        <Card.Content style={styles.shopInfoContent}>
-          <Avatar.Text 
-            size={80} 
-            label={initials}
-            style={styles.avatar}
-          />
-          <View style={styles.shopDetails}>
-            <Title>{shopDetails.name || 'Shop Name'}</Title>
-            <Paragraph>{shopDetails.address || 'No address provided'}</Paragraph>
-            <Paragraph>{shopDetails.phone || 'No phone provided'}</Paragraph>
-            <View style={styles.ratingContainer}>
-              <MaterialCommunityIcons name="star" size={20} color={theme.colors.primary} />
-              <Paragraph style={styles.rating}>
-                {shopDetails.rating?.toFixed(1) || '0.0'} ({shopDetails.totalRatings || 0} reviews)
-              </Paragraph>
-            </View>
-          </View>
-        </Card.Content>
-      </Card>
-    );
   };
 
-  const renderServices = () => {
-    if (!shopDetails?.services) {
-      return null;
-    }
-
-    return (
-      <Card style={styles.card}>
-        <Card.Content>
-          <Title style={styles.sectionTitle}>Services Offered</Title>
-          <View style={styles.servicesContainer}>
-            {shopDetails.services.map((service, index) => (
-              <Chip 
-                key={index}
-                style={styles.serviceChip}
-                mode="outlined"
-              >
-                {service}
-              </Chip>
-            ))}
-          </View>
-        </Card.Content>
-      </Card>
-    );
+  const handleSignOut = () => {
+    dispatch(signOut());
   };
 
-  const renderMenuItems = () => (
-    <Card style={styles.card}>
+  const renderStats = () => (
+    <Surface style={styles.statsCard}>
+      <View style={styles.statsGrid}>
+        <View style={styles.statItem}>
+          <Text variant="titleLarge" style={styles.statValue}>
+            {stats.totalRepairs}
+          </Text>
+          <Text variant="bodySmall" style={styles.statLabel}>
+            Total Repairs
+          </Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text variant="titleLarge" style={styles.statValue}>
+            {stats.completedRepairs}
+          </Text>
+          <Text variant="bodySmall" style={styles.statLabel}>
+            Completed
+          </Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text variant="titleLarge" style={styles.statValue}>
+            ${stats.totalRevenue.toFixed(2)}
+          </Text>
+          <Text variant="bodySmall" style={styles.statLabel}>
+            Revenue
+          </Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text variant="titleLarge" style={styles.statValue}>
+            {stats.averageRating.toFixed(1)}
+          </Text>
+          <Text variant="bodySmall" style={styles.statLabel}>
+            Rating
+          </Text>
+        </View>
+      </View>
+    </Surface>
+  );
+
+  const renderProfileSection = () => (
+    <Surface style={styles.profileCard}>
+      <View style={styles.profileHeader}>
+        {shopData?.logo ? (
+          <Image source={{ uri: shopData.logo }} style={styles.logo} />
+        ) : (
+          <View style={[styles.logo, styles.placeholderLogo]}>
+            <MaterialCommunityIcons name="store" size={40} color="#ccc" />
+          </View>
+        )}
+        <View style={styles.profileInfo}>
+          <Text variant="titleLarge">{shopData?.name}</Text>
+          <Text variant="bodyMedium" style={styles.subtitle}>
+            {shopData?.description}
+          </Text>
+        </View>
+      </View>
+
+      <Divider style={styles.divider} />
+
       <List.Section>
         <List.Item
-          title="Shop Information"
-          left={props => <List.Icon {...props} icon="store" />}
+          title="Edit Profile"
+          left={props => <List.Icon {...props} icon="account-edit" />}
+          right={props => <List.Icon {...props} icon="chevron-right" />}
           onPress={() => navigation.navigate('EditShopProfile')}
         />
-        <Divider />
         <List.Item
-          title="Business Hours"
-          left={props => <List.Icon {...props} icon="clock" />}
-          onPress={() => navigation.navigate('BusinessHours')}
+          title="Working Hours"
+          left={props => <List.Icon {...props} icon="clock-outline" />}
+          right={props => <List.Icon {...props} icon="chevron-right" />}
+          onPress={() => navigation.navigate('WorkingHours')}
         />
-        <Divider />
         <List.Item
-          title="Service Management"
+          title="Services"
           left={props => <List.Icon {...props} icon="tools" />}
-          onPress={() => navigation.navigate('ServiceManagement')}
-        />
-        <Divider />
-        <List.Item
-          title="Payment Settings"
-          left={props => <List.Icon {...props} icon="credit-card" />}
-          onPress={() => navigation.navigate('PaymentSettings')}
-        />
-        <Divider />
-        <List.Item
-          title="Notification Settings"
-          left={props => <List.Icon {...props} icon="bell" />}
-          onPress={() => navigation.navigate('NotificationSettings')}
+          right={props => <List.Icon {...props} icon="chevron-right" />}
+          onPress={() => navigation.navigate('Services')}
         />
       </List.Section>
-    </Card>
+    </Surface>
+  );
+
+  const renderContactSection = () => (
+    <Surface style={styles.contactCard}>
+      <Text variant="titleMedium" style={styles.sectionTitle}>Contact Information</Text>
+      <Divider style={styles.divider} />
+      
+      <List.Section>
+        <List.Item
+          title={shopData?.phone || 'Not set'}
+          description="Phone"
+          left={props => <List.Icon {...props} icon="phone" />}
+        />
+        <List.Item
+          title={shopData?.email || 'Not set'}
+          description="Email"
+          left={props => <List.Icon {...props} icon="email" />}
+        />
+        <List.Item
+          title={shopData?.address || 'Not set'}
+          description="Address"
+          left={props => <List.Icon {...props} icon="map-marker" />}
+        />
+        {shopData?.website && (
+          <List.Item
+            title={shopData.website}
+            description="Website"
+            left={props => <List.Icon {...props} icon="web" />}
+          />
+        )}
+      </List.Section>
+    </Surface>
   );
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
-        {renderShopInfo()}
-        {renderServices()}
-        {renderMenuItems()}
-        <View style={styles.logoutContainer}>
-          <Button 
-            mode="outlined" 
-            onPress={handleLogout}
-            icon="logout"
-            style={styles.logoutButton}
-          >
-            Logout
-          </Button>
-        </View>
+        {renderStats()}
+        {renderProfileSection()}
+        {renderContactSection()}
+        
+        <Surface style={styles.settingsCard}>
+          <List.Section>
+            <List.Item
+              title="Settings"
+              left={props => <List.Icon {...props} icon="cog" />}
+              right={props => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() => navigation.navigate('Settings')}
+            />
+            <List.Item
+              title="Help & Support"
+              left={props => <List.Icon {...props} icon="help-circle" />}
+              right={props => <List.Icon {...props} icon="chevron-right" />}
+              onPress={() => navigation.navigate('Support')}
+            />
+            <List.Item
+              title="Sign Out"
+              left={props => <List.Icon {...props} icon="logout" color={theme.colors.error} />}
+              onPress={handleSignOut}
+            />
+          </List.Section>
+        </Surface>
       </ScrollView>
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
   },
-  card: {
+  statsCard: {
     margin: 16,
     marginBottom: 8,
+    padding: 16,
+    borderRadius: 12,
+    elevation: 2,
   },
-  shopInfoContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    marginRight: 16,
-  },
-  shopDetails: {
-    flex: 1,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  rating: {
-    marginLeft: 4,
-  },
-  sectionTitle: {
-    marginBottom: 12,
-  },
-  servicesContainer: {
+  statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
   },
-  serviceChip: {
+  statItem: {
+    width: '48%',
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  statValue: {
+    marginBottom: 4,
+  },
+  statLabel: {
+    color: '#666',
+  },
+  profileCard: {
+    margin: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  profileHeader: {
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginRight: 16,
+  },
+  placeholderLogo: {
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  subtitle: {
+    color: '#666',
+    marginTop: 4,
+  },
+  contactCard: {
+    margin: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  sectionTitle: {
     marginBottom: 8,
   },
-  logoutContainer: {
-    padding: 16,
-    paddingTop: 8,
+  divider: {
+    marginVertical: 12,
   },
-  logoutButton: {
-    borderColor: '#ff4444',
+  settingsCard: {
+    margin: 16,
+    marginTop: 8,
+    marginBottom: 16,
+    borderRadius: 12,
+    elevation: 2,
   },
-});
-
-export default ProfileScreen; 
+}); 

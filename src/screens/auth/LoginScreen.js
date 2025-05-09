@@ -1,116 +1,219 @@
 import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { TextInput, Button, Text, Title, SegmentedButtons } from 'react-native-paper';
-import { useDispatch, useSelector } from 'react-redux';
-import { login } from '../../store/slices/authSlice';
+import { View, StyleSheet, Image, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { Text, TextInput, Button, Surface, useTheme, IconButton, HelperText } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDispatch } from 'react-redux';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../../config/firebase';
+import { setUser } from '../../store/slices/authSlice';
 
 export default function LoginScreen({ navigation }) {
+  const theme = useTheme();
   const dispatch = useDispatch();
-  const { isLoading, error } = useSelector(state => state.auth);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [userType, setUserTypeLocal] = useState('customer');
+  
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+  const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Invalid email address';
+    }
+    
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleLogin = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
     try {
-      const result = await dispatch(login({ email, password })).unwrap();
+      setLoading(true);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
+
+      const user = {
+        id: userCredential.user.uid,
+        email: userCredential.user.email,
+        displayName: userCredential.user.displayName,
+        photoURL: userCredential.user.photoURL
+      };
+
+      dispatch(setUser(user));
+    } catch (error) {
+      console.error('Login error:', error);
+      let errorMessage = 'Failed to login';
       
-      // Check if user type matches
-      if (result.userType !== userType) {
-        throw new Error('Invalid user type selected');
+      switch (error.code) {
+        case 'auth/user-not-found':
+          errorMessage = 'No account found with this email';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'Invalid password';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Invalid email address';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many failed attempts. Please try again later';
+          break;
       }
       
-      // Navigation will be handled by AppNavigator based on auth state
-    } catch (error) {
-      // Error is already handled by the auth slice
-      console.error('Login error:', error);
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Title style={styles.title}>Welcome Back</Title>
-      
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      
-      <TextInput
-        label="Email"
-        value={email}
-        onChangeText={setEmail}
-        mode="outlined"
-        autoCapitalize="none"
-        style={styles.input}
-      />
-      
-      <TextInput
-        label="Password"
-        value={password}
-        onChangeText={setPassword}
-        mode="outlined"
-        secureTextEntry
-        style={styles.input}
-      />
-
-      <SegmentedButtons
-        value={userType}
-        onValueChange={setUserTypeLocal}
-        buttons={[
-          { value: 'customer', label: 'Customer' },
-          { value: 'shop_owner', label: 'Shop Owner' }
-        ]}
-        style={styles.segment}
-      />
-
-      <Button
-        mode="contained"
-        onPress={handleLogin}
-        loading={isLoading}
-        style={styles.button}
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoid}
       >
-        Login
-      </Button>
-
-      <View style={styles.footer}>
-        <Text>Don't have an account? </Text>
-        <Button
-          mode="text"
-          onPress={() => navigation.navigate('Register')}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
         >
-          Sign Up
-        </Button>
-      </View>
-    </View>
+          <Surface style={styles.formContainer}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('../../../assets/icon.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+              <Text variant="headlineMedium" style={styles.title}>
+                Welcome Back
+              </Text>
+              <Text variant="bodyLarge" style={styles.subtitle}>
+                Sign in to continue
+              </Text>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <TextInput
+                label="Email"
+                value={formData.email}
+                onChangeText={text => setFormData(prev => ({ ...prev, email: text }))}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                error={!!errors.email}
+                style={styles.input}
+              />
+              <HelperText type="error" visible={!!errors.email}>
+                {errors.email}
+              </HelperText>
+
+              <TextInput
+                label="Password"
+                value={formData.password}
+                onChangeText={text => setFormData(prev => ({ ...prev, password: text }))}
+                secureTextEntry={!showPassword}
+                error={!!errors.password}
+                style={styles.input}
+                right={
+                  <TextInput.Icon
+                    icon={showPassword ? 'eye-off' : 'eye'}
+                    onPress={() => setShowPassword(!showPassword)}
+                  />
+                }
+              />
+              <HelperText type="error" visible={!!errors.password}>
+                {errors.password}
+              </HelperText>
+            </View>
+
+            <Button
+              mode="contained"
+              onPress={handleLogin}
+              loading={loading}
+              disabled={loading}
+              style={styles.loginButton}
+            >
+              Sign In
+            </Button>
+
+            <Button
+              mode="text"
+              onPress={() => navigation.navigate('Register')}
+              style={styles.registerButton}
+            >
+              Don't have an account? Sign Up
+            </Button>
+          </Surface>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    backgroundColor: '#f8f9fa',
+  },
+  keyboardAvoid: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
+  },
+  formContainer: {
+    margin: 16,
+    padding: 24,
+    borderRadius: 16,
+    elevation: 2,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    marginBottom: 16,
   },
   title: {
-    fontSize: 24,
-    marginBottom: 24,
+    marginBottom: 8,
     textAlign: 'center',
+  },
+  subtitle: {
+    color: '#666',
+    textAlign: 'center',
+  },
+  inputContainer: {
+    marginBottom: 24,
   },
   input: {
+    marginBottom: 4,
+    backgroundColor: '#fff',
+  },
+  loginButton: {
     marginBottom: 16,
+    borderRadius: 8,
   },
-  segment: {
-    marginBottom: 24,
-  },
-  button: {
-    marginBottom: 16,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  error: {
-    color: 'red',
-    marginBottom: 16,
-    textAlign: 'center',
+  registerButton: {
+    marginTop: 8,
   },
 }); 
