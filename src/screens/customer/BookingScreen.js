@@ -1,22 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
-import { TextInput, Button, Title, Paragraph, SegmentedButtons, Chip, Portal, Modal } from 'react-native-paper';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { addRepair } from '../../store/slices/repairSlice';
+import { View, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Text, Surface, Button, Chip, Divider, Portal, Modal, TextInput, useTheme, IconButton, FAB } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { collection, doc, getDoc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 export default function BookingScreen({ route, navigation }) {
   const { shopId } = route.params;
-  const dispatch = useDispatch();
+  const theme = useTheme();
   const user = useSelector(state => state.auth.user);
   
   const [shop, setShop] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [deviceType, setDeviceType] = useState('');
   const [deviceModel, setDeviceModel] = useState('');
   const [issueDescription, setIssueDescription] = useState('');
   const [selectedServices, setSelectedServices] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [estimatedCost, setEstimatedCost] = useState(null);
+  const [estimatedTime, setEstimatedTime] = useState(null);
 
   useEffect(() => {
     fetchShopDetails();
@@ -24,37 +29,61 @@ export default function BookingScreen({ route, navigation }) {
 
   const fetchShopDetails = async () => {
     try {
-      // First, try to get shop from Redux store
-      const shopsState = useSelector(state => state.shops);
-      if (shopsState && shopsState.shops) {
-        const shopFromStore = shopsState.shops.find(s => s.id === shopId);
-        if (shopFromStore) {
-          setShop(shopFromStore);
-          return;
-        }
-      }
+      const shopRef = doc(db, 'shops', shopId);
+      const shopDoc = await getDoc(shopRef);
       
-      // Fallback to AsyncStorage if shop is not in Redux
-      const usersJson = await AsyncStorage.getItem('users');
-      const users = JSON.parse(usersJson || '[]');
-      const shopOwner = users.find(u => u.id === shopId);
-      
-      if (shopOwner && shopOwner.shopDetails) {
-        setShop(shopOwner.shopDetails);
+      if (shopDoc.exists()) {
+        setShop({ id: shopDoc.id, ...shopDoc.data() });
+      } else {
+        Alert.alert('Error', 'Shop not found');
+        navigation.goBack();
       }
     } catch (error) {
       console.error('Error fetching shop details:', error);
+      Alert.alert('Error', 'Failed to load shop details');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleBooking = async () => {
-    try {
-      setIsLoading(true);
+  const handleServiceSelect = (service) => {
+    if (selectedServices.includes(service)) {
+      setSelectedServices(selectedServices.filter(s => s !== service));
+    } else {
+      setSelectedServices([...selectedServices, service]);
+    }
+  };
 
-      const repair = {
-        id: Date.now().toString(),
+  const validateForm = () => {
+    if (!deviceType.trim()) {
+      Alert.alert('Error', 'Please enter your device type');
+      return false;
+    }
+    if (!deviceModel.trim()) {
+      Alert.alert('Error', 'Please enter your device model');
+      return false;
+    }
+    if (!issueDescription.trim()) {
+      Alert.alert('Error', 'Please describe the issue');
+      return false;
+    }
+    if (selectedServices.length === 0) {
+      Alert.alert('Error', 'Please select at least one service');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+
+    try {
+      setSubmitting(true);
+
+      // Create repair request in Firestore
+      const repairRef = await addDoc(collection(db, 'repairs'), {
         customerId: user.id,
-        customerEmail: user.email,
+        customerName: user.name || user.email.split('@')[0],
         shopId,
         shopName: shop.name,
         deviceType,
@@ -62,177 +91,253 @@ export default function BookingScreen({ route, navigation }) {
         issueDescription,
         services: selectedServices,
         status: 'pending',
-        createdAt: new Date().toISOString(),
-        estimatedCompletion: null,
-        price: null,
-      };
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        estimatedCost,
+        estimatedTime,
+        messages: [],
+        timeline: [{
+          status: 'pending',
+          timestamp: serverTimestamp(),
+          description: 'Repair request submitted'
+        }]
+      });
 
-      // Get existing repairs or initialize empty array
-      const repairsJson = await AsyncStorage.getItem('repairs');
-      const repairs = JSON.parse(repairsJson || '[]');
-      
-      // Add new repair
-      repairs.push(repair);
-      await AsyncStorage.setItem('repairs', JSON.stringify(repairs));
-      
-      // Dispatch to Redux - this uses repairSlice (singular)
-      try {
-        dispatch(addRepair(repair));
-        console.log('Repair added to Redux store successfully');
-      } catch (error) {
-        console.error('Error dispatching repair to Redux:', error);
-        // Continue anyway since we saved to AsyncStorage
-      }
-      
+      // Update shop's repair count
+      const shopRef = doc(db, 'shops', shopId);
+      await updateDoc(shopRef, {
+        totalRepairs: (shop.totalRepairs || 0) + 1,
+        pendingRepairs: (shop.pendingRepairs || 0) + 1
+      });
+
       setShowConfirmation(true);
     } catch (error) {
-      console.error('Error creating repair ticket:', error);
-      alert('Failed to create repair ticket. Please try again.');
+      console.error('Error submitting repair request:', error);
+      Alert.alert('Error', 'Failed to submit repair request. Please try again.');
     } finally {
-      setIsLoading(false);
+      setSubmitting(false);
     }
   };
 
-  const renderConfirmationModal = () => (
-    <Portal>
-      <Modal
-        visible={showConfirmation}
-        onDismiss={() => {
-          setShowConfirmation(false);
-          navigation.navigate('CustomerHome');
-        }}
-        contentContainerStyle={styles.modalContainer}
-      >
-        <Title style={styles.modalTitle}>Booking Confirmed!</Title>
-        <Paragraph>Your repair request has been sent to {shop?.name}.</Paragraph>
-        <Paragraph>They will review your request and contact you shortly.</Paragraph>
-        <Button
-          mode="contained"
-          onPress={() => {
-            setShowConfirmation(false);
-            navigation.navigate('CustomerHome');
-          }}
-          style={styles.modalButton}
-        >
-          Go to Home
-        </Button>
-      </Modal>
-    </Portal>
-  );
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text>Loading shop details...</Text>
+      </View>
+    );
+  }
 
   if (!shop) {
-    return null;
+    return (
+      <View style={styles.errorContainer}>
+        <MaterialCommunityIcons name="alert-circle" size={48} color="#F44336" />
+        <Text style={styles.errorText}>Shop details not found</Text>
+        <Button mode="contained" onPress={() => navigation.goBack()} style={styles.button}>
+          Go Back
+        </Button>
+      </View>
+    );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Title style={styles.title}>Book a Repair</Title>
-      <Paragraph style={styles.shopName}>{shop.name}</Paragraph>
+    <SafeAreaView style={styles.container}>
+      <ScrollView>
+        <Surface style={styles.card}>
+          <View style={styles.cardContent}>
+            <Text variant="titleMedium">Device Information</Text>
+            <TextInput
+              label="Device Type"
+              value={deviceType}
+              onChangeText={setDeviceType}
+              style={styles.input}
+              mode="outlined"
+            />
+            <TextInput
+              label="Device Model"
+              value={deviceModel}
+              onChangeText={setDeviceModel}
+              style={styles.input}
+              mode="outlined"
+            />
+          </View>
+        </Surface>
 
-      <TextInput
-        label="Device Type"
-        value={deviceType}
-        onChangeText={setDeviceType}
-        mode="outlined"
-        style={styles.input}
+        <Surface style={styles.card}>
+          <View style={styles.cardContent}>
+            <Text variant="titleMedium">Issue Description</Text>
+            <TextInput
+              label="Describe the issue"
+              value={issueDescription}
+              onChangeText={setIssueDescription}
+              style={styles.input}
+              mode="outlined"
+              multiline
+              numberOfLines={4}
+            />
+          </View>
+        </Surface>
+
+        <Surface style={styles.card}>
+          <View style={styles.cardContent}>
+            <Text variant="titleMedium">Select Services</Text>
+            <View style={styles.servicesContainer}>
+              {shop.services?.map((service, index) => (
+                <Chip
+                  key={index}
+                  selected={selectedServices.includes(service)}
+                  onPress={() => handleServiceSelect(service)}
+                  style={styles.serviceChip}
+                  mode="outlined"
+                >
+                  {service}
+                </Chip>
+              ))}
+            </View>
+          </View>
+        </Surface>
+
+        <Surface style={styles.card}>
+          <View style={styles.cardContent}>
+            <Text variant="titleMedium">Estimated Details</Text>
+            <TextInput
+              label="Estimated Cost (optional)"
+              value={estimatedCost}
+              onChangeText={setEstimatedCost}
+              style={styles.input}
+              mode="outlined"
+              keyboardType="numeric"
+              placeholder="Enter estimated cost"
+            />
+            <TextInput
+              label="Estimated Time (optional)"
+              value={estimatedTime}
+              onChangeText={setEstimatedTime}
+              style={styles.input}
+              mode="outlined"
+              placeholder="e.g., 2-3 business days"
+            />
+          </View>
+        </Surface>
+      </ScrollView>
+
+      <Portal>
+        <Modal
+          visible={showConfirmation}
+          onDismiss={() => {
+            setShowConfirmation(false);
+            navigation.navigate('RepairStatus');
+          }}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <MaterialCommunityIcons name="check-circle" size={64} color="#4CAF50" />
+            <Text style={styles.modalTitle}>Repair Request Submitted!</Text>
+            <Text style={styles.modalText}>
+              Your repair request has been submitted successfully. The shop will review your request and get back to you soon.
+            </Text>
+            <Button
+              mode="contained"
+              onPress={() => {
+                setShowConfirmation(false);
+                navigation.navigate('RepairStatus');
+              }}
+              style={styles.modalButton}
+            >
+              View Status
+            </Button>
+          </View>
+        </Modal>
+      </Portal>
+
+      <FAB
+        style={styles.fab}
+        icon="check"
+        label="Submit Request"
+        onPress={handleSubmit}
+        loading={submitting}
+        disabled={submitting}
+        color="#fff"
       />
-
-      <TextInput
-        label="Device Model"
-        value={deviceModel}
-        onChangeText={setDeviceModel}
-        mode="outlined"
-        style={styles.input}
-      />
-
-      <TextInput
-        label="Issue Description"
-        value={issueDescription}
-        onChangeText={setIssueDescription}
-        mode="outlined"
-        multiline
-        numberOfLines={4}
-        style={styles.input}
-      />
-
-      <Title style={styles.sectionTitle}>Available Services</Title>
-      <View style={styles.servicesContainer}>
-        {shop.services.map((service, index) => (
-          <Chip
-            key={index}
-            selected={selectedServices.includes(service)}
-            onPress={() => {
-              if (selectedServices.includes(service)) {
-                setSelectedServices(selectedServices.filter(s => s !== service));
-              } else {
-                setSelectedServices([...selectedServices, service]);
-              }
-            }}
-            style={styles.serviceChip}
-          >
-            {service}
-          </Chip>
-        ))}
-      </View>
-
-      <Button
-        mode="contained"
-        onPress={handleBooking}
-        loading={isLoading}
-        disabled={!deviceType || !deviceModel || !issueDescription || selectedServices.length === 0}
-        style={styles.button}
-      >
-        Book Repair
-      </Button>
-
-      {renderConfirmationModal()}
-    </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
   },
-  title: {
-    fontSize: 24,
-    marginBottom: 8,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  shopName: {
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    marginTop: 10,
+    marginBottom: 20,
     fontSize: 18,
-    marginBottom: 24,
+  },
+  card: {
+    margin: 16,
+    marginTop: 0,
+    marginBottom: 16,
+    borderRadius: 16,
+    elevation: 2,
+  },
+  cardContent: {
+    padding: 16,
   },
   input: {
+    marginTop: 8,
     marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    marginBottom: 16,
+    backgroundColor: '#fff',
   },
   servicesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 24,
+    marginTop: 12,
   },
   serviceChip: {
     margin: 4,
-  },
-  button: {
-    marginTop: 16,
   },
   modalContainer: {
     backgroundColor: 'white',
     padding: 20,
     margin: 20,
-    borderRadius: 8,
+    borderRadius: 16,
+  },
+  modalContent: {
+    alignItems: 'center',
   },
   modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
     textAlign: 'center',
-    marginBottom: 16,
+  },
+  modalText: {
+    textAlign: 'center',
+    marginBottom: 24,
+    color: '#666',
   },
   modalButton: {
-    marginTop: 24,
+    width: '100%',
+  },
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#2196F3',
+    borderRadius: 28,
+    elevation: 6,
   },
 }); 

@@ -6,7 +6,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector } from 'react-redux';
 import { format, differenceInDays } from 'date-fns';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { PieChart } from 'react-native-chart-kit';
+import { PieChart, BarChart } from 'react-native-chart-kit';
+import CustomerInsights from '../../components/CustomerInsights';
+import CustomerCard from '../../components/CustomerCard';
 
 const { width } = Dimensions.get('window');
 
@@ -24,12 +26,23 @@ const DashboardScreen = ({ navigation }) => {
     cancelled: 0,
     pending: 0
   });
+  const [customerData, setCustomerData] = useState({
+    totalSpent: 0,
+    avgRepairCost: 0,
+    repairCount: 0,
+    lastRepairDate: null,
+    deviceTypes: {},
+    repairsByMonth: [],
+    customerSince: null,
+    preferredServices: [],
+    lifetimeValue: 0,
+    loyaltyScore: 0
+  });
 
   useEffect(() => {
     fetchRepairs();
   }, []);
 
-  // Add a listener for when the screen comes into focus to refresh data
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       fetchRepairs();
@@ -44,22 +57,99 @@ const DashboardScreen = ({ navigation }) => {
       const repairsJson = await AsyncStorage.getItem('repairs');
       const allRepairs = JSON.parse(repairsJson || '[]');
       
-      // Filter repairs for this customer only
       const customerRepairs = allRepairs.filter(repair => repair.customerId === user.id);
-      
-      // Sort repairs by creation date (newest first)
       customerRepairs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       
       setRepairs(customerRepairs);
       calculateStats(customerRepairs);
       findUpcomingRepair(customerRepairs);
       countUnreadMessages(customerRepairs);
+      calculateCustomerData(customerRepairs);
     } catch (error) {
       console.error('Error fetching repairs:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const calculateCustomerData = (repairsList) => {
+    if (!repairsList.length) return;
+
+    const totalSpent = repairsList.reduce((sum, repair) => sum + (parseFloat(repair.price) || 0), 0);
+    const avgRepairCost = totalSpent / repairsList.length;
+    const deviceTypes = {};
+    const repairsByMonth = [];
+    const preferredServices = [];
+    const serviceCount = {};
+
+    repairsList.forEach(repair => {
+      // Count device types
+      if (repair.deviceType) {
+        deviceTypes[repair.deviceType] = (deviceTypes[repair.deviceType] || 0) + 1;
+      }
+
+      // Count services
+      if (repair.services) {
+        repair.services.forEach(service => {
+          serviceCount[service] = (serviceCount[service] || 0) + 1;
+        });
+      }
+
+      // Group repairs by month
+      const month = format(new Date(repair.createdAt), 'MMM yyyy');
+      const existingMonth = repairsByMonth.find(m => m.month === month);
+      if (existingMonth) {
+        existingMonth.count++;
+      } else {
+        repairsByMonth.push({ month, count: 1 });
+      }
+    });
+
+    // Convert service counts to preferred services array
+    Object.entries(serviceCount).forEach(([name, count]) => {
+      preferredServices.push({ name, count });
+    });
+
+    // Sort preferred services by count
+    preferredServices.sort((a, b) => b.count - a.count);
+
+    // Calculate loyalty score based on various factors
+    const loyaltyScore = calculateLoyaltyScore(repairsList, totalSpent);
+
+    setCustomerData({
+      totalSpent,
+      avgRepairCost,
+      repairCount: repairsList.length,
+      lastRepairDate: repairsList[0]?.createdAt,
+      deviceTypes,
+      repairsByMonth,
+      customerSince: repairsList[repairsList.length - 1]?.createdAt,
+      preferredServices: preferredServices.slice(0, 5),
+      lifetimeValue: totalSpent,
+      loyaltyScore
+    });
+  };
+
+  const calculateLoyaltyScore = (repairs, totalSpent) => {
+    let score = 0;
+    
+    // Base score from number of repairs
+    score += Math.min(repairs.length * 10, 40);
+    
+    // Score from total spent
+    score += Math.min(totalSpent / 100, 30);
+    
+    // Score from recency (last 3 months)
+    const recentRepairs = repairs.filter(repair => {
+      const repairDate = new Date(repair.createdAt);
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      return repairDate >= threeMonthsAgo;
+    });
+    score += Math.min(recentRepairs.length * 10, 30);
+    
+    return Math.min(score, 100);
   };
 
   const calculateStats = (repairsList) => {
@@ -351,60 +441,19 @@ const DashboardScreen = ({ navigation }) => {
     );
   };
 
-  const renderRepairHistoryChart = () => {
-    if (repairs.length === 0) return null;
-
-    const chartData = [
-      {
-        name: 'Completed',
-        population: repairHistory.completed,
-        color: '#4CAF50',
-        legendFontColor: '#7F7F7F',
-        legendFontSize: 12
-      },
-      {
-        name: 'In Progress',
-        population: repairHistory.inProgress,
-        color: '#2196F3',
-        legendFontColor: '#7F7F7F',
-        legendFontSize: 12
-      },
-      {
-        name: 'Pending',
-        population: repairHistory.pending,
-        color: '#FF9800',
-        legendFontColor: '#7F7F7F',
-        legendFontSize: 12
-      },
-      {
-        name: 'Cancelled',
-        population: repairHistory.cancelled,
-        color: '#F44336',
-        legendFontColor: '#7F7F7F',
-        legendFontSize: 12
-      }
-    ].filter(item => item.population > 0);
-
-    if (chartData.length === 0) return null;
-
+  const renderCustomerInsights = () => {
     return (
-      <Card style={styles.chartCard}>
-        <Card.Content>
-          <Text variant="titleMedium" style={styles.chartTitle}>Your Repair History</Text>
-          <PieChart
-            data={chartData}
-            width={width - 40}
-            height={180}
-            chartConfig={{
-              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            }}
-            accessor="population"
-            backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
-          />
-        </Card.Content>
-      </Card>
+      <CustomerInsights
+        customerData={customerData}
+        recentRepairs={repairs.slice(0, 3).map(repair => ({
+          deviceType: repair.deviceType,
+          deviceModel: repair.deviceModel,
+          date: repair.createdAt,
+          cost: repair.price,
+          status: repair.status
+        }))}
+        onViewAllRepairs={() => navigation.navigate('RepairStatus')}
+      />
     );
   };
 
@@ -412,7 +461,7 @@ const DashboardScreen = ({ navigation }) => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text>Loading your repairs...</Text>
+        <Text>Loading your dashboard...</Text>
       </View>
     );
   }
@@ -452,6 +501,8 @@ const DashboardScreen = ({ navigation }) => {
           </View>
         </View>
 
+        {renderCustomerInsights()}
+
         {renderUpcomingRepair()}
 
         <View style={styles.statsContainer}>
@@ -474,8 +525,6 @@ const DashboardScreen = ({ navigation }) => {
           </Surface>
         </View>
 
-        {renderRepairHistoryChart()}
-
         <View style={styles.sectionHeader}>
           <Text variant="titleLarge">Recent Repairs</Text>
           <Button 
@@ -490,26 +539,6 @@ const DashboardScreen = ({ navigation }) => {
         <View style={styles.repairsContainer}>
           {renderRecentRepairs()}
         </View>
-
-        <Card style={styles.tipsCard}>
-          <Card.Content>
-            <Text variant="titleMedium" style={styles.tipsTitle}>
-              <MaterialCommunityIcons name="lightbulb-on" size={20} color="#FFC107" /> Tips
-            </Text>
-            <View style={styles.tipItem}>
-              <MaterialCommunityIcons name="shield-check" size={16} color="#4CAF50" />
-              <Text style={styles.tipText}>Backup your data before bringing in your device</Text>
-            </View>
-            <View style={styles.tipItem}>
-              <MaterialCommunityIcons name="shield-check" size={16} color="#4CAF50" />
-              <Text style={styles.tipText}>Check for warranty before requesting a repair</Text>
-            </View>
-            <View style={styles.tipItem}>
-              <MaterialCommunityIcons name="shield-check" size={16} color="#4CAF50" />
-              <Text style={styles.tipText}>Regular maintenance extends device lifespan</Text>
-            </View>
-          </Card.Content>
-        </Card>
 
         <View style={styles.actionsContainer}>
           <Button 
@@ -545,124 +574,155 @@ const DashboardScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f8f9fa',
   },
   header: {
     padding: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+    elevation: 2,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   avatar: {
     marginRight: 15,
+    backgroundColor: '#2196F3',
   },
   headerText: {
     flex: 1,
   },
   notificationIcon: {
     position: 'relative',
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    elevation: 2,
   },
   badge: {
     position: 'absolute',
     top: 5,
     right: 5,
+    backgroundColor: '#FF5252',
   },
   upcomingCard: {
     margin: 16,
-    marginTop: 0,
-    borderRadius: 12,
-    elevation: 3,
+    marginTop: 8,
+    borderRadius: 16,
+    elevation: 4,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   upcomingHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   upcomingTitle: {
     marginLeft: 10,
+    fontWeight: '600',
   },
   upcomingContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    paddingHorizontal: 16,
   },
   upcomingInfo: {
     flex: 1,
   },
   dateContainer: {
-    marginTop: 5,
+    marginTop: 8,
+    backgroundColor: '#f8f9fa',
+    padding: 8,
+    borderRadius: 8,
   },
   estimatedDate: {
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: '#2196F3',
   },
   progressContainer: {
-    marginTop: 15,
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   progressBar: {
-    height: 6,
-    borderRadius: 3,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#e9ecef',
   },
   progressText: {
-    marginTop: 5,
+    marginTop: 8,
     textAlign: 'center',
-    color: '#757575',
+    color: '#6c757d',
+    fontSize: 12,
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: 16,
+    marginTop: 8,
   },
   statCard: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 15,
-    borderRadius: 12,
-    marginHorizontal: 5,
-    elevation: 2,
+    padding: 16,
+    borderRadius: 16,
+    marginHorizontal: 6,
+    elevation: 3,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   statNumber: {
-    marginVertical: 5,
+    marginVertical: 8,
     fontWeight: 'bold',
+    fontSize: 24,
+    color: '#2196F3',
   },
   statLabel: {
-    color: '#757575',
-  },
-  chartCard: {
-    margin: 16,
-    borderRadius: 12,
-    elevation: 3,
-  },
-  chartTitle: {
-    marginBottom: 12,
-    textAlign: 'center',
+    color: '#6c757d',
+    fontSize: 12,
+    fontWeight: '500',
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   repairsContainer: {
-    padding: 15,
+    padding: 16,
   },
   repairCard: {
-    marginBottom: 15,
-    elevation: 2,
-    borderRadius: 12,
+    marginBottom: 16,
+    elevation: 3,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   repairHeader: {
-    marginBottom: 10,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   repairTitleSection: {
     flexDirection: 'row',
@@ -670,70 +730,68 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusChip: {
-    height: 28,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
   },
   divider: {
-    marginVertical: 10,
+    marginVertical: 12,
+    backgroundColor: '#e9ecef',
   },
   repairDetails: {
-    marginTop: 5,
+    marginTop: 8,
+    paddingHorizontal: 16,
   },
   repairDetail: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 8,
   },
   repairDetailText: {
     marginLeft: 8,
-    color: '#757575',
+    color: '#6c757d',
+    fontSize: 14,
   },
   emptyCard: {
-    marginBottom: 15,
-    elevation: 2,
-    borderRadius: 12,
+    marginBottom: 16,
+    elevation: 3,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   emptyCardContent: {
     alignItems: 'center',
-    padding: 30,
+    padding: 32,
   },
   emptyText: {
-    marginTop: 15,
+    marginTop: 16,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2196F3',
   },
   emptySubText: {
     textAlign: 'center',
-    marginTop: 5,
-    marginBottom: 20,
-    color: '#757575',
+    marginTop: 8,
+    marginBottom: 24,
+    color: '#6c757d',
+    fontSize: 14,
   },
   emptyButton: {
-    marginTop: 10,
-  },
-  tipsCard: {
-    margin: 16,
-    borderRadius: 12,
-    elevation: 2,
-    backgroundColor: '#FFFDE7',
-  },
-  tipsTitle: {
-    marginBottom: 10,
-  },
-  tipItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 5,
-  },
-  tipText: {
-    marginLeft: 10,
-    flex: 1,
+    marginTop: 16,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 24,
   },
   actionsContainer: {
     padding: 20,
     marginBottom: 20,
   },
   button: {
-    marginBottom: 10,
-    borderRadius: 8,
-    paddingVertical: 5,
+    marginBottom: 12,
+    borderRadius: 12,
+    paddingVertical: 8,
+    elevation: 2,
   },
   fab: {
     position: 'absolute',
@@ -741,6 +799,8 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: '#2196F3',
+    borderRadius: 28,
+    elevation: 6,
   },
 });
 
