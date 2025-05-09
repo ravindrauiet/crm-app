@@ -4,17 +4,23 @@ const STORAGE_KEYS = {
   USER: 'user',
   REPAIRS: 'repairs',
   SHOPS: 'shops',
+  USERS: 'users'
 };
 
 // Auth functions
 export const loginUser = async (email, password) => {
   try {
-    // For demo, accept any email/password combination
-    const user = {
-      uid: email.toLowerCase(),
-      email: email.toLowerCase(),
-      userType: email.includes('shop') ? 'shop_owner' : 'customer',
-    };
+    // Get all users
+    const usersJson = await AsyncStorage.getItem(STORAGE_KEYS.USERS);
+    const users = JSON.parse(usersJson || '[]');
+    
+    // Find user
+    const user = users.find(u => u.email === email.toLowerCase());
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Store current user
     await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
     return user;
   } catch (error) {
@@ -24,26 +30,38 @@ export const loginUser = async (email, password) => {
 
 export const registerUser = async (email, password, userType, shopDetails = null) => {
   try {
+    // Get existing users
+    const usersJson = await AsyncStorage.getItem(STORAGE_KEYS.USERS);
+    const users = JSON.parse(usersJson || '[]');
+
+    // Check if user already exists
+    if (users.some(u => u.email === email.toLowerCase())) {
+      throw new Error('User already exists');
+    }
+
     const user = {
-      uid: email.toLowerCase(),
+      id: Date.now().toString(),
       email: email.toLowerCase(),
       userType,
       createdAt: new Date().toISOString(),
     };
 
     if (userType === 'shop_owner' && shopDetails) {
-      const shop = {
-        id: user.uid,
+      user.shopDetails = {
         ...shopDetails,
-        ownerId: user.uid,
+        ownerId: user.id,
         status: 'active',
+        rating: 0,
+        totalRatings: 0,
         createdAt: new Date().toISOString(),
       };
-      const shops = await getShops();
-      shops.push(shop);
-      await AsyncStorage.setItem(STORAGE_KEYS.SHOPS, JSON.stringify(shops));
     }
 
+    // Add new user to users array
+    users.push(user);
+    await AsyncStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    
+    // Store current user
     await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
     return user;
   } catch (error) {
@@ -112,8 +130,16 @@ export const updateRepair = async (repairId, updates) => {
 // Shops functions
 export const getShops = async () => {
   try {
-    const shopsStr = await AsyncStorage.getItem(STORAGE_KEYS.SHOPS);
-    return shopsStr ? JSON.parse(shopsStr) : [];
+    const usersJson = await AsyncStorage.getItem(STORAGE_KEYS.USERS);
+    const users = JSON.parse(usersJson || '[]');
+    
+    // Filter shop owners and map their data
+    return users
+      .filter(user => user.userType === 'shop_owner' && user.shopDetails)
+      .map(user => ({
+        id: user.id,
+        ...user.shopDetails
+      }));
   } catch (error) {
     return [];
   }
@@ -121,8 +147,10 @@ export const getShops = async () => {
 
 export const getShopById = async (shopId) => {
   try {
-    const shops = await getShops();
-    return shops.find(shop => shop.id === shopId);
+    const usersJson = await AsyncStorage.getItem(STORAGE_KEYS.USERS);
+    const users = JSON.parse(usersJson || '[]');
+    const shopOwner = users.find(u => u.id === shopId && u.userType === 'shop_owner');
+    return shopOwner ? { id: shopOwner.id, ...shopOwner.shopDetails } : null;
   } catch (error) {
     return null;
   }

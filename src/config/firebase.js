@@ -1,5 +1,5 @@
 import { initializeApp, getApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence, getAuth } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -14,32 +14,38 @@ const firebaseConfig = {
 
 // Initialize Firebase only if it hasn't been initialized
 let app;
+let auth;
+let db;
+
 try {
-  app = initializeApp(firebaseConfig);
+  app = getApp();
+  // If we got here, app is already initialized
+  auth = getAuth(app);
 } catch (error) {
-  if (error.code === 'app/duplicate-app') {
-    app = getApp();
-  } else {
-    throw error;
-  }
+  // Initialize the app for the first time
+  app = initializeApp(firebaseConfig);
+  
+  // Initialize Auth with AsyncStorage persistence
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage)
+  });
 }
 
-// Initialize Auth with AsyncStorage persistence
-const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage)
-});
+// Initialize Firestore
+db = getFirestore(app);
 
-// Initialize Firestore with offline persistence
-const db = getFirestore(app);
-
-// Enable offline persistence
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-  } else if (err.code === 'unimplemented') {
-    console.warn('The current browser does not support persistence.');
-  }
-});
+// Enable offline persistence (only if not already enabled)
+try {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+    } else if (err.code === 'unimplemented') {
+      console.warn('The current browser does not support persistence.');
+    }
+  });
+} catch (error) {
+  console.warn('Persistence may already be enabled:', error);
+}
 
 export { auth, db };
 export default app; 

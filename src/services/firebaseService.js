@@ -1,20 +1,21 @@
 import { 
-  createUserWithEmailAndPassword,
+  getAuth, 
+  createUserWithEmailAndPassword, 
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
 import { 
+  collection, 
   doc, 
   setDoc, 
   getDoc, 
-  collection, 
-  addDoc, 
-  updateDoc,
-  query,
-  where,
-  getDocs,
+  getDocs, 
+  query, 
+  where, 
   serverTimestamp,
+  addDoc,
+  updateDoc,
   enableNetwork,
   disableNetwork
 } from 'firebase/firestore';
@@ -42,54 +43,55 @@ const withRetry = async (operation, maxRetries = 3) => {
 
 // Helper function to convert Firestore data to serializable format
 const convertToSerializable = (data) => {
-  if (!data) return data;
-  
-  const serialized = { ...data };
-  // Convert Firestore timestamps to ISO strings
-  if (serialized.createdAt && typeof serialized.createdAt.toDate === 'function') {
-    serialized.createdAt = serialized.createdAt.toDate().toISOString();
-  }
-  if (serialized.updatedAt && typeof serialized.updatedAt.toDate === 'function') {
-    serialized.updatedAt = serialized.updatedAt.toDate().toISOString();
-  }
-  return serialized;
+  if (data === null || data === undefined) return data;
+  if (typeof data !== 'object') return data;
+  if (data instanceof Date) return data.toISOString();
+  if (Array.isArray(data)) return data.map(convertToSerializable);
+  return Object.fromEntries(
+    Object.entries(data).map(([key, value]) => [key, convertToSerializable(value)])
+  );
 };
 
 // Auth functions
 export const registerUser = async (email, password, userType, shopDetails = null) => {
   try {
+    // Create user in Firebase Auth
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
+    // Create user document in Firestore
     const userData = {
       uid: user.uid,
       email: user.email,
       userType,
-      createdAt: new Date().toISOString(), // Use ISO string instead of serverTimestamp
+      createdAt: serverTimestamp(),
     };
 
+    // If user is a shop owner, create shop document
     if (userType === 'shop_owner' && shopDetails) {
-      userData.shopDetails = {
-        ...shopDetails,
+      const shopData = {
         ownerId: user.uid,
+        ...shopDetails,
         status: 'active',
-        createdAt: new Date().toISOString(),
+        rating: 0,
+        totalRatings: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       };
+
+      // Create shop document in shops collection
+      await withRetry(() => setDoc(doc(db, 'shops', user.uid), shopData));
     }
 
-    // Use serverTimestamp for Firestore but return serializable data
-    await withRetry(() => setDoc(doc(db, 'users', user.uid), {
-      ...userData,
-      createdAt: serverTimestamp(),
-      ...(userData.shopDetails && {
-        shopDetails: {
-          ...userData.shopDetails,
-          createdAt: serverTimestamp()
-        }
-      })
-    }));
-    
-    return userData; // Return serializable data
+    // Create user document in users collection
+    await withRetry(() => setDoc(doc(db, 'users', user.uid), userData));
+
+    return {
+      uid: user.uid,
+      email: user.email,
+      userType,
+      ...(userType === 'shop_owner' && shopDetails ? { shopDetails } : {})
+    };
   } catch (error) {
     console.error('Registration error:', error);
     throw new Error(error.message);
@@ -100,13 +102,24 @@ export const loginUser = async (email, password) => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
-    
-    const userDoc = await withRetry(() => getDoc(doc(db, 'users', user.uid)));
+
+    // Get user data from Firestore
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
     if (!userDoc.exists()) {
       throw new Error('User data not found');
     }
-    
-    return convertToSerializable(userDoc.data());
+
+    const userData = userDoc.data();
+
+    // If user is a shop owner, get shop details
+    if (userData.userType === 'shop_owner') {
+      const shopDoc = await getDoc(doc(db, 'shops', user.uid));
+      if (shopDoc.exists()) {
+        userData.shopDetails = shopDoc.data();
+      }
+    }
+
+    return convertToSerializable(userData);
   } catch (error) {
     console.error('Login error:', error);
     throw new Error(error.message);
@@ -206,13 +219,40 @@ export const getRepairs = async (userId, userType) => {
 // Shops functions
 export const getShops = async () => {
   try {
-    const shopsRef = collection(db, 'users');
-    const q = query(shopsRef, where('userType', '==', 'shop_owner'));
+    // Query users who are shop owners
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('userType', '==', 'shop_owner'));
     const querySnapshot = await withRetry(() => getDocs(q));
-    return querySnapshot.docs.map(doc => convertToSerializable({
+    
+    // For each shop owner, fetch their shop details
+    const shopOwners = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
+    
+    // Get shop details for each shop owner
+    const shopsWithDetails = await Promise.all(
+      shopOwners.map(async (owner) => {
+        try {
+          const shopDoc = await withRetry(() => getDoc(doc(db, 'shops', owner.id)));
+          if (shopDoc.exists()) {
+            // Combine user data with shop data
+            return convertToSerializable({
+              id: owner.id,
+              email: owner.email,
+              ...shopDoc.data()
+            });
+          }
+          return null;
+        } catch (error) {
+          console.error(`Error fetching shop details for ${owner.id}:`, error);
+          return null;
+        }
+      })
+    );
+    
+    // Filter out null values (shop owners without shop details)
+    return shopsWithDetails.filter(shop => shop !== null);
   } catch (error) {
     console.error('Get shops error:', error);
     throw new Error('Failed to get shops');
@@ -221,13 +261,28 @@ export const getShops = async () => {
 
 export const getShopById = async (shopId) => {
   try {
-    const shopDoc = await withRetry(() => getDoc(doc(db, 'users', shopId)));
-    if (shopDoc.exists()) {
-      return convertToSerializable({
-        id: shopDoc.id,
-        ...shopDoc.data()
-      });
+    // Get user doc first
+    const userDoc = await withRetry(() => getDoc(doc(db, 'users', shopId)));
+    if (!userDoc.exists()) {
+      return null;
     }
+    
+    const userData = userDoc.data();
+    
+    // If user is a shop owner, get shop details
+    if (userData.userType === 'shop_owner') {
+      const shopDoc = await withRetry(() => getDoc(doc(db, 'shops', shopId)));
+      if (shopDoc.exists()) {
+        // Combine user data with shop data
+        return convertToSerializable({
+          id: shopId,
+          email: userData.email,
+          ...shopDoc.data()
+        });
+      }
+    }
+    
+    // Return null if no shop data found
     return null;
   } catch (error) {
     console.error('Get shop error:', error);
