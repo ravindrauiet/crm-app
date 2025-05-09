@@ -24,6 +24,17 @@ export default function BookingScreen({ route, navigation }) {
 
   const fetchShopDetails = async () => {
     try {
+      // First, try to get shop from Redux store
+      const shopsState = useSelector(state => state.shops);
+      if (shopsState && shopsState.shops) {
+        const shopFromStore = shopsState.shops.find(s => s.id === shopId);
+        if (shopFromStore) {
+          setShop(shopFromStore);
+          return;
+        }
+      }
+      
+      // Fallback to AsyncStorage if shop is not in Redux
       const usersJson = await AsyncStorage.getItem('users');
       const users = JSON.parse(usersJson || '[]');
       const shopOwner = users.find(u => u.id === shopId);
@@ -64,7 +75,15 @@ export default function BookingScreen({ route, navigation }) {
       repairs.push(repair);
       await AsyncStorage.setItem('repairs', JSON.stringify(repairs));
       
-      dispatch(addRepair(repair));
+      // Dispatch to Redux - this uses repairSlice (singular)
+      try {
+        dispatch(addRepair(repair));
+        console.log('Repair added to Redux store successfully');
+      } catch (error) {
+        console.error('Error dispatching repair to Redux:', error);
+        // Continue anyway since we saved to AsyncStorage
+      }
+      
       setShowConfirmation(true);
     } catch (error) {
       console.error('Error creating repair ticket:', error);
