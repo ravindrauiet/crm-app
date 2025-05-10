@@ -3,8 +3,7 @@ import { View, StyleSheet, Image, KeyboardAvoidingView, Platform, ScrollView, Al
 import { Text, TextInput, Button, Surface, useTheme, IconButton, HelperText } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../config/firebase';
+import { loginUser } from '../../services/firebaseService';
 import { setUser } from '../../store/slices/authSlice';
 
 export default function LoginScreen({ navigation }) {
@@ -45,20 +44,8 @@ export default function LoginScreen({ navigation }) {
 
     try {
       setLoading(true);
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
-
-      const user = {
-        id: userCredential.user.uid,
-        email: userCredential.user.email,
-        displayName: userCredential.user.displayName,
-        photoURL: userCredential.user.photoURL
-      };
-
-      dispatch(setUser(user));
+      const userData = await loginUser(formData.email, formData.password);
+      dispatch(setUser(userData));
     } catch (error) {
       console.error('Login error:', error);
       let errorMessage = 'Failed to login';
