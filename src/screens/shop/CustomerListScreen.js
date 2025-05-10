@@ -28,6 +28,15 @@ export default function CustomerListScreen({ navigation }) {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
+      
+      // Check if user exists and has a valid ID
+      if (!user || !user.id) {
+        console.log('User info missing or incomplete', user);
+        setLoading(false);
+        setCustomers([]);
+        return;
+      }
+      
       const repairsRef = collection(db, 'repairs');
       const q = query(
         repairsRef,

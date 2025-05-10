@@ -61,12 +61,28 @@ export default function InventoryAdjustScreen({ route, navigation }) {
       return;
     }
     
+    // Check if user exists and has an ID
+    if (!user) {
+      console.error('User object is missing');
+      Alert.alert('Error', 'User information is missing. Please log in again.');
+      return;
+    }
+    
+    // Get user ID from either id or uid property
+    const userId = user.id || user.uid;
+    
+    if (!userId) {
+      console.error('User ID is missing. User object:', JSON.stringify(user));
+      Alert.alert('Error', 'User ID is missing. Please log in again.');
+      return;
+    }
+    
     const adjustmentData = {
       id: itemId,
       quantity: adjustmentType === 'increase' ? parseInt(quantity) : -parseInt(quantity),
       reason,
       notes,
-      userId: user.id
+      userId: userId
     };
     
     dispatch(adjustInventory(adjustmentData))
@@ -79,6 +95,7 @@ export default function InventoryAdjustScreen({ route, navigation }) {
         );
       })
       .catch(err => {
+        console.error('Error adjusting inventory:', err);
         Alert.alert('Error', err.toString());
       });
   };

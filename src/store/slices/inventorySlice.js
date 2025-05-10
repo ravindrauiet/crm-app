@@ -65,6 +65,13 @@ export const addInventoryItem = createAsyncThunk(
   'inventory/addInventoryItem',
   async (itemData, { rejectWithValue }) => {
     try {
+      console.log('Adding inventory item with data:', itemData);
+      
+      // Ensure userId exists
+      if (!itemData.userId) {
+        throw new Error('User ID is required to add inventory items');
+      }
+      
       const inventoryRef = collection(db, 'inventory');
       const docRef = await addDoc(inventoryRef, {
         ...itemData,
@@ -83,7 +90,7 @@ export const addInventoryItem = createAsyncThunk(
         newQuantity: itemData.stockLevel,
         timestamp: serverTimestamp(),
         notes: `Initial stock: ${itemData.stockLevel} units`,
-        user: itemData.userId || 'unknown'
+        user: itemData.userId
       });
 
       return {
@@ -130,6 +137,15 @@ export const adjustInventory = createAsyncThunk(
   'inventory/adjustInventory',
   async ({ id, quantity, reason, notes, userId }, { rejectWithValue, getState }) => {
     try {
+      if (!userId) {
+        console.error('User ID is missing for adjustInventory');
+        throw new Error('User ID is required to adjust inventory');
+      }
+      
+      if (!id) {
+        throw new Error('Item ID is required to adjust inventory');
+      }
+      
       const state = getState();
       const existingItem = state.inventory.items.find(item => item.id === id);
       
@@ -163,7 +179,7 @@ export const adjustInventory = createAsyncThunk(
         timestamp: serverTimestamp(),
         reason,
         notes,
-        user: userId || 'unknown'
+        user: userId
       });
 
       return {
@@ -182,6 +198,15 @@ export const useParts = createAsyncThunk(
   'inventory/useParts',
   async ({ repairId, parts, userId }, { rejectWithValue, getState }) => {
     try {
+      if (!userId) {
+        console.error('User ID is missing for useParts');
+        throw new Error('User ID is required to use parts in repair');
+      }
+      
+      if (!repairId) {
+        throw new Error('Repair ID is required to use parts');
+      }
+      
       const state = getState();
       
       // Process each part
@@ -219,7 +244,7 @@ export const useParts = createAsyncThunk(
           timestamp: serverTimestamp(),
           reason: 'Used in repair',
           notes: `Used ${part.quantity} units in repair #${repairId.substring(0, 8)}`,
-          user: userId || 'unknown'
+          user: userId
         });
       }
 
@@ -367,12 +392,12 @@ const inventorySlice = createSlice({
 export const { resetStatus } = inventorySlice.actions;
 
 // Custom hooks for common selectors
-export const useInventory = () => (state) => state.inventory.items;
-export const useAuditLogs = () => (state) => state.inventory.auditLogs;
+export const useInventory = () => (state) => state.inventory?.items || [];
+export const useAuditLogs = () => (state) => state.inventory?.auditLogs || [];
 export const useInventoryStatus = () => (state) => ({
-  status: state.inventory.status,
-  error: state.inventory.error
+  status: state.inventory?.status || 'idle',
+  error: state.inventory?.error || null
 });
-export const useInventoryStore = () => (state) => state.inventory;
+export const useInventoryStore = () => (state) => state.inventory || initialState;
 
 export default inventorySlice.reducer; 

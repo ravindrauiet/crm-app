@@ -3,6 +3,7 @@ import authReducer from './slices/authSlice';
 import shopsReducer from './slices/shopsSlice';
 import shopReducer from './slices/shopSlice';
 import repairReducer from './slices/repairSlice';
+import inventoryReducer from './slices/inventorySlice';
 
 // Check which shop reducer is being used
 console.log('Store configuration:');
@@ -14,6 +15,7 @@ const store = configureStore({
     auth: authReducer,
     shops: shopReducer, // Make sure this matches the selector in ShopListScreen
     repair: repairReducer,
+    inventory: inventoryReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

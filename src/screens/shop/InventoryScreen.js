@@ -8,8 +8,8 @@ import { fetchInventory, deleteInventoryItem, useInventory, useInventoryStatus }
 
 export default function InventoryScreen({ navigation }) {
   const dispatch = useDispatch();
-  const inventory = useSelector(useInventory());
-  const { status, error } = useSelector(useInventoryStatus());
+  const inventoryItems = useSelector(useInventory()) || [];
+  const { status, error } = useSelector(useInventoryStatus()) || { status: 'idle', error: null };
   const user = useSelector(state => state.auth.user);
   
   const [refreshing, setRefreshing] = useState(false);
@@ -23,7 +23,9 @@ export default function InventoryScreen({ navigation }) {
   }, []);
   
   const loadInventory = () => {
-    dispatch(fetchInventory());
+    if (user && user.id) {
+      dispatch(fetchInventory());
+    }
   };
   
   const onRefresh = () => {
@@ -61,7 +63,7 @@ export default function InventoryScreen({ navigation }) {
     closeMenu(id);
   };
   
-  const filteredInventory = inventory.filter(item => {
+  const filteredInventory = inventoryItems.filter(item => {
     const lowerQuery = searchQuery.toLowerCase();
     return (
       item.name.toLowerCase().includes(lowerQuery) ||

@@ -70,13 +70,35 @@ export default function InventoryAddScreen({ navigation }) {
       return;
     }
     
+    // Check if user exists and has an ID
+    if (!user) {
+      console.error('User object is missing');
+      Alert.alert('Error', 'User information is missing. Please log in again.');
+      return;
+    }
+    
+    // Log user object for debugging
+    console.log('User object:', user);
+    
+    // Get user ID from either id or uid property
+    const userId = user.id || user.uid;
+    
+    if (!userId) {
+      console.error('User ID is missing. User object:', JSON.stringify(user));
+      Alert.alert('Error', 'User ID is missing. Please log in again.');
+      return;
+    }
+    
     const itemData = {
       ...formData,
       stockLevel: parseInt(formData.stockLevel),
       minStockLevel: formData.minStockLevel ? parseInt(formData.minStockLevel) : 5,
       unitCost: formData.unitCost ? parseFloat(formData.unitCost) : 0,
-      userId: user.id,
+      userId: userId,
+      createdAt: new Date(),
     };
+    
+    console.log('Adding inventory item with data:', itemData);
     
     dispatch(addInventoryItem(itemData))
       .unwrap()
@@ -88,6 +110,7 @@ export default function InventoryAddScreen({ navigation }) {
         );
       })
       .catch(err => {
+        console.error('Error adding inventory item:', err);
         Alert.alert('Error', err.toString());
       });
   };
