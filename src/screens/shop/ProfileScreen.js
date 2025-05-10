@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Image } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Image, ActivityIndicator } from 'react-native';
 import { Text, Surface, Button, useTheme, IconButton, Divider, List } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { signOut } from '../../store/slices/authSlice';
+import { logout } from '../../store/slices/authSlice';
 
 export default function ProfileScreen({ navigation }) {
   const theme = useTheme();
@@ -23,13 +23,26 @@ export default function ProfileScreen({ navigation }) {
   });
 
   useEffect(() => {
-    fetchShopProfile();
-  }, []);
+    if (user) {
+      fetchShopProfile();
+    }
+  }, [user]);
 
   const fetchShopProfile = async () => {
     try {
       setLoading(true);
-      const shopRef = doc(db, 'shops', user.id);
+      
+      // Check and log user data for debugging
+      console.log('User data in shop profile:', user);
+      
+      // Handle potential missing user ID
+      if (!user || (!user.id && !user.uid)) {
+        console.error('User ID is missing in shop profile');
+        return;
+      }
+      
+      const userId = user.uid || user.id;
+      const shopRef = doc(db, 'shops', userId);
       const shopDoc = await getDoc(shopRef);
       
       if (shopDoc.exists()) {
@@ -42,6 +55,17 @@ export default function ProfileScreen({ navigation }) {
           totalRevenue: shopStats.totalRevenue || 0,
           averageRating: shopStats.averageRating || 0
         });
+      } else {
+        console.log('No shop document found for user:', userId);
+        // Set default empty shop data
+        setShopData({
+          name: 'Your Shop',
+          description: 'Add a description to your shop',
+          phone: '',
+          email: user.email || '',
+          address: '',
+          website: ''
+        });
       }
     } catch (error) {
       console.error('Error fetching shop profile:', error);
@@ -51,9 +75,34 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
-  const handleSignOut = () => {
-    dispatch(signOut());
+  const handleSignOut = async () => {
+    try {
+      await dispatch(logout());
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'Failed to log out. Please try again.');
+    }
   };
+
+  // If user data is not available, show a loading screen
+  if (!user) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={styles.loadingText}>Loading user data...</Text>
+      </View>
+    );
+  }
+
+  // Show loading indicator while fetching shop data
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={styles.loadingText}>Loading shop profile...</Text>
+      </View>
+    );
+  }
 
   const renderStats = () => (
     <Surface style={styles.statsCard}>
@@ -206,6 +255,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
   },
   statsCard: {
     margin: 16,
