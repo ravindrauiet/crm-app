@@ -6,7 +6,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { updateUser } from '../../store/slices/authSlice';
+import { updateUser, logout } from '../../store/slices/authSlice';
 
 export default function ProfileScreen({ navigation }) {
   const theme = useTheme();
@@ -43,6 +43,8 @@ export default function ProfileScreen({ navigation }) {
 
   const fetchUserStats = async () => {
     try {
+      if (!user?.id) return;
+      
       const userRef = doc(db, 'users', user.id);
       const userDoc = await getDoc(userRef);
       
@@ -57,6 +59,13 @@ export default function ProfileScreen({ navigation }) {
       }
     } catch (error) {
       console.error('Error fetching user stats:', error);
+      // Set default stats on error
+      setStats({
+        totalRepairs: 0,
+        activeRepairs: 0,
+        completedRepairs: 0,
+        totalSpent: 0
+      });
     }
   };
 
@@ -84,6 +93,15 @@ export default function ProfileScreen({ navigation }) {
       Alert.alert('Error', 'Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await dispatch(logout());
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
     }
   };
 
@@ -245,6 +263,15 @@ export default function ProfileScreen({ navigation }) {
             icon="help-circle-outline"
           >
             Help & Support
+          </Button>
+          <Button
+            mode="outlined"
+            onPress={handleSignOut}
+            style={[styles.settingButton, { borderColor: theme.colors.error, marginTop: 8 }]}
+            icon="logout"
+            textColor={theme.colors.error}
+          >
+            Sign Out
           </Button>
         </Surface>
       </ScrollView>
