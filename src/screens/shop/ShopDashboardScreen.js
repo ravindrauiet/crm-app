@@ -26,7 +26,9 @@ export default function ShopDashboardScreen({ navigation }) {
     completedRepairs: 0,
     totalRevenue: 0,
     averageRating: 0,
-    totalCustomers: 0
+    totalCustomers: 0,
+    inventoryItems: 0,
+    lowStockItems: 0
   });
   const [recentRepairs, setRecentRepairs] = useState([]);
   const [showNewRepairModal, setShowNewRepairModal] = useState(false);
@@ -132,6 +134,29 @@ export default function ShopDashboardScreen({ navigation }) {
           averageRating: 0,
           totalCustomers: 0
         });
+      }
+
+      // Fetch inventory stats
+      try {
+        const inventoryRef = collection(db, 'inventory');
+        const inventoryQuery = query(inventoryRef, where('userId', '==', userId));
+        const inventorySnapshot = await getDocs(inventoryQuery);
+        
+        let lowStockCount = 0;
+        inventorySnapshot.docs.forEach(doc => {
+          const item = doc.data();
+          if (item.stockLevel <= (item.minStockLevel || 5)) {
+            lowStockCount++;
+          }
+        });
+        
+        setStats(prevStats => ({
+          ...prevStats,
+          inventoryItems: inventorySnapshot.size,
+          lowStockItems: lowStockCount
+        }));
+      } catch (inventoryError) {
+        console.error('Error fetching inventory stats:', inventoryError);
       }
 
       // Try-catch for the repairs query to isolate errors
@@ -262,21 +287,44 @@ export default function ShopDashboardScreen({ navigation }) {
   };
 
   const renderWelcomeSection = () => {
-    const userName = user?.name || user?.displayName || (user?.email ? user.email.split('@')[0] : 'Shop Owner');
-    const initials = userName.substring(0, 2).toUpperCase();
-    
+    const shopName = user?.shopName || 'Your Shop';
     return (
       <Surface style={styles.welcomeCard}>
         <View style={styles.welcomeContent}>
-          <Avatar.Text 
-            size={60} 
-            label={initials} 
-            style={styles.avatar}
-          />
-          <View style={styles.welcomeText}>
-            <Title style={styles.welcomeTitle}>Welcome back, {userName}!</Title>
-            <Text style={styles.welcomeSubtitle}>Manage your repair service business</Text>
+          <View>
+            <Text style={styles.welcomeTitle}>Welcome back!</Text>
+            <Text style={styles.welcomeShopName}>{shopName}</Text>
           </View>
+          <MaterialCommunityIcons name="store" size={48} color={theme.colors.primary} />
+        </View>
+        
+        <View style={styles.quickActions}>
+          <Button 
+            mode="contained" 
+            icon="wrench" 
+            onPress={() => navigation.navigate('RepairTickets')}
+            style={styles.actionButton}
+          >
+            Repairs
+          </Button>
+          
+          <Button 
+            mode="contained" 
+            icon="account-group" 
+            onPress={() => navigation.navigate('CustomerList')}
+            style={styles.actionButton}
+          >
+            Customers
+          </Button>
+          
+          <Button 
+            mode="contained" 
+            icon="package-variant" 
+            onPress={() => navigation.navigate('Inventory')}
+            style={styles.actionButton}
+          >
+            Inventory
+          </Button>
         </View>
       </Surface>
     );
@@ -342,6 +390,33 @@ export default function ShopDashboardScreen({ navigation }) {
           </View>
         </View>
       </View>
+    </Surface>
+  );
+
+  const renderInventoryCard = () => (
+    <Surface style={styles.statsCard}>
+      <Text style={styles.cardTitle}>Inventory Status</Text>
+      <View style={styles.statsRow}>
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{stats.inventoryItems}</Text>
+          <Text style={styles.statLabel}>Total Items</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={[styles.statValue, stats.lowStockItems > 0 ? styles.alertText : {}]}>
+            {stats.lowStockItems}
+          </Text>
+          <Text style={styles.statLabel}>Low Stock</Text>
+        </View>
+      </View>
+      
+      <Button 
+        mode="outlined" 
+        icon="package-variant" 
+        onPress={() => navigation.navigate('Inventory')}
+        style={styles.cardButton}
+      >
+        Manage Inventory
+      </Button>
     </Surface>
   );
 
@@ -448,6 +523,7 @@ export default function ShopDashboardScreen({ navigation }) {
         {renderWelcomeSection()}
         {renderStatsCard()}
         {renderRevenueCard()}
+        {renderInventoryCard()}
         {renderRecentRepairs()}
       </ScrollView>
       
@@ -465,6 +541,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  content: {
+    padding: 16,
+    paddingBottom: 32,
   },
   loadingContainer: {
     flex: 1,
@@ -518,10 +598,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   statsCard: {
-    margin: 16,
-    marginTop: 0,
+    marginBottom: 16,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 8,
     elevation: 2,
   },
   statsGrid: {
@@ -530,13 +609,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   statItem: {
-    width: '48%',
     alignItems: 'center',
-    padding: 12,
-    marginBottom: 16,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    elevation: 1,
+    flex: 1,
   },
   card: {
     margin: 16,
@@ -623,5 +697,41 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     color: '#6c757d',
+  },
+  welcomeShopName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  actionButton: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statValue: {
+    fontWeight: 'bold',
+    color: '#2196F3',
+  },
+  statLabel: {
+    color: '#666',
+  },
+  cardButton: {
+    marginTop: 16,
+  },
+  alertText: {
+    color: '#FF5252',
   },
 }); 

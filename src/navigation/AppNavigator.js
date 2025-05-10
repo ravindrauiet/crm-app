@@ -25,6 +25,13 @@ import AnalyticsScreen from '../screens/shop/AnalyticsScreen';
 import ShopProfileScreen from '../screens/shop/ProfileScreen';
 import EditShopProfileScreen from '../screens/shop/EditShopProfileScreen';
 
+// Inventory Screens
+import InventoryScreen from '../screens/shop/InventoryScreen';
+import InventoryAddScreen from '../screens/shop/InventoryAddScreen';
+import InventoryAdjustScreen from '../screens/shop/InventoryAdjustScreen';
+import InventoryAuditLogScreen from '../screens/shop/InventoryAuditLogScreen';
+import InventoryEditScreen from '../screens/shop/InventoryEditScreen';
+
 // Shared Screens
 import RepairDetailsScreen from '../screens/shared/RepairDetailsScreen';
 import FirebaseDebug from '../components/FirebaseDebug';
@@ -148,6 +155,31 @@ const AppNavigator = () => {
               name="RepairDetails" 
               component={RepairDetailsScreen}
               options={{ title: 'Repair Details' }}
+            />
+            <Stack.Screen 
+              name="Inventory" 
+              component={InventoryScreen}
+              options={{ title: 'Inventory Management' }}
+            />
+            <Stack.Screen 
+              name="InventoryAdd" 
+              component={InventoryAddScreen}
+              options={{ title: 'Add Inventory Item' }}
+            />
+            <Stack.Screen 
+              name="InventoryAdjust" 
+              component={InventoryAdjustScreen}
+              options={{ title: 'Adjust Inventory' }}
+            />
+            <Stack.Screen 
+              name="InventoryAuditLog" 
+              component={InventoryAuditLogScreen}
+              options={{ title: 'Inventory History' }}
+            />
+            <Stack.Screen 
+              name="InventoryEdit" 
+              component={InventoryEditScreen}
+              options={{ title: 'Edit Inventory Item' }}
             />
             <Stack.Screen 
               name="FirebaseDebug" 
