@@ -3,10 +3,7 @@ import { View, StyleSheet, Image, KeyboardAvoidingView, Platform, ScrollView, Al
 import { Text, TextInput, Button, Surface, useTheme, IconButton, HelperText, SegmentedButtons } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { auth, db } from '../../config/firebase';
-import { setUser } from '../../store/slices/authSlice';
+import { register } from '../../store/slices/authSlice';
 
 export default function RegisterScreen({ navigation }) {
   const theme = useTheme();
@@ -65,38 +62,18 @@ export default function RegisterScreen({ navigation }) {
     try {
       setLoading(true);
       
-      // Create user account
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
-
-      // Update user profile
-      await updateProfile(userCredential.user, {
-        displayName: formData.name
-      });
-
-      // Create user document in Firestore
-      const userDoc = {
-        id: userCredential.user.uid,
+      const userData = {
         name: formData.name,
-        email: formData.email,
         phone: formData.phone,
-        userType: userType,
-        createdAt: new Date(),
-        updatedAt: new Date()
       };
-
-      await setDoc(doc(db, userType === 'customer' ? 'customers' : 'shops', userCredential.user.uid), userDoc);
-
-      // Update Redux store
-      dispatch(setUser({
-        id: userCredential.user.uid,
-        email: userCredential.user.email,
-        displayName: formData.name,
-        userType: userType
-      }));
+      
+      // Register user using the auth slice thunk
+      const result = await dispatch(register({
+        email: formData.email,
+        password: formData.password,
+        userType: userType,
+        userData: userData
+      })).unwrap();
 
       Alert.alert('Success', 'Account created successfully');
     } catch (error) {

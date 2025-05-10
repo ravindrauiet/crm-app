@@ -53,25 +53,31 @@ const convertToSerializable = (data) => {
 };
 
 // Auth functions
-export const registerUser = async (email, password, userType, shopDetails = null) => {
+export const registerUser = async (email, password, userType, userData = {}) => {
   try {
     // Create user in Firebase Auth
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
     // Create user document in Firestore
-    const userData = {
+    const userDocData = {
       uid: user.uid,
       email: user.email,
       userType,
+      name: userData.name || '',
+      phone: userData.phone || '',
       createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
 
     // If user is a shop owner, create shop document
-    if (userType === 'shop_owner' && shopDetails) {
+    if (userType === 'shop_owner' && userData) {
       const shopData = {
         ownerId: user.uid,
-        ...shopDetails,
+        name: userData.name || '',
+        phone: userData.phone || '',
+        description: userData.description || '',
+        address: userData.address || '',
         status: 'active',
         rating: 0,
         totalRatings: 0,
@@ -83,14 +89,31 @@ export const registerUser = async (email, password, userType, shopDetails = null
       await withRetry(() => setDoc(doc(db, 'shops', user.uid), shopData));
     }
 
+    // For customer, create a customer document
+    if (userType === 'customer') {
+      const customerData = {
+        id: user.uid,
+        name: userData.name || '',
+        email: user.email,
+        phone: userData.phone || '',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      
+      await withRetry(() => setDoc(doc(db, 'customers', user.uid), customerData));
+    }
+
     // Create user document in users collection
-    await withRetry(() => setDoc(doc(db, 'users', user.uid), userData));
+    await withRetry(() => setDoc(doc(db, 'users', user.uid), userDocData));
 
     return {
       uid: user.uid,
+      id: user.uid,
       email: user.email,
+      name: userData.name,
+      phone: userData.phone,
       userType,
-      ...(userType === 'shop_owner' && shopDetails ? { shopDetails } : {})
+      ...(userType === 'shop_owner' ? { shopDetails: userData } : {})
     };
   } catch (error) {
     console.error('Registration error:', error);
