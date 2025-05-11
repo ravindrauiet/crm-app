@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import { FAB } from 'react-native-paper';
 
 export default function RepairTicketsScreen({ navigation }) {
   const theme = useTheme();
@@ -21,6 +22,7 @@ export default function RepairTicketsScreen({ navigation }) {
   const [noteModalVisible, setNoteModalVisible] = useState(false);
   const [note, setNote] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [newStatus, setNewStatus] = useState('pending');
 
   useEffect(() => {
     fetchRepairs();
@@ -89,6 +91,7 @@ export default function RepairTicketsScreen({ navigation }) {
     try {
       setUpdating(true);
       const repairRef = doc(db, 'repairs', selectedRepair.id);
+      const currentNotes = selectedRepair.notes || [];
       const newNote = {
         text: note.trim(),
         timestamp: Timestamp.now(),
@@ -96,7 +99,7 @@ export default function RepairTicketsScreen({ navigation }) {
       };
 
       await updateDoc(repairRef, {
-        notes: [...(selectedRepair.notes || []), newNote],
+        notes: [...currentNotes, newNote],
         updatedAt: Timestamp.now()
       });
 
@@ -252,78 +255,15 @@ export default function RepairTicketsScreen({ navigation }) {
         {repairs.map(renderRepairCard)}
       </ScrollView>
 
-      <Portal>
-        <Modal
-          visible={statusModalVisible}
-          onDismiss={() => setStatusModalVisible(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <Text variant="titleLarge" style={styles.modalTitle}>Update Status</Text>
-          <View style={styles.statusButtons}>
-            <Button
-              mode="outlined"
-              onPress={() => handleStatusChange('pending')}
-              loading={updating}
-              disabled={updating}
-              style={styles.statusButton}
-            >
-              Pending
-            </Button>
-            <Button
-              mode="outlined"
-              onPress={() => handleStatusChange('in_progress')}
-              loading={updating}
-              disabled={updating}
-              style={styles.statusButton}
-            >
-              In Progress
-            </Button>
-            <Button
-              mode="outlined"
-              onPress={() => handleStatusChange('completed')}
-              loading={updating}
-              disabled={updating}
-              style={styles.statusButton}
-            >
-              Completed
-            </Button>
-            <Button
-              mode="outlined"
-              onPress={() => handleStatusChange('cancelled')}
-              loading={updating}
-              disabled={updating}
-              style={styles.statusButton}
-            >
-              Cancelled
-            </Button>
-          </View>
-        </Modal>
+      <FAB
+        style={styles.fab}
+        icon="plus"
+        onPress={() => navigation.navigate('RepairCreate')}
+        color="#fff"
+      />
 
-        <Modal
-          visible={noteModalVisible}
-          onDismiss={() => setNoteModalVisible(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <Text variant="titleLarge" style={styles.modalTitle}>Add Note</Text>
-          <TextInput
-            label="Note"
-            value={note}
-            onChangeText={setNote}
-            multiline
-            numberOfLines={4}
-            style={styles.noteInput}
-          />
-          <Button
-            mode="contained"
-            onPress={handleAddNote}
-            loading={updating}
-            disabled={updating || !note.trim()}
-            style={styles.noteButton}
-          >
-            Add Note
-          </Button>
-        </Modal>
-      </Portal>
+      {statusModalVisible && renderStatusModal()}
+      {noteModalVisible && renderNoteModal()}
     </SafeAreaView>
   );
 }
@@ -418,4 +358,115 @@ const styles = StyleSheet.create({
   noteButton: {
     borderRadius: 8,
   },
-}); 
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#2196F3',
+    borderRadius: 28,
+    elevation: 6,
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    padding: 20,
+    margin: 20,
+    borderRadius: 12,
+  },
+  statusOptions: {
+    gap: 8,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+});
+
+const renderStatusModal = () => (
+  <Modal
+    visible={statusModalVisible}
+    onDismiss={() => setStatusModalVisible(false)}
+    contentContainerStyle={styles.modalContainer}
+  >
+    <Text style={styles.modalTitle}>Update Repair Status</Text>
+    <View style={styles.statusOptions}>
+      <Button
+        mode={newStatus === 'pending' ? 'contained' : 'outlined'}
+        onPress={() => setNewStatus('pending')}
+        style={styles.statusButton}
+        disabled={updating}
+      >
+        Pending
+      </Button>
+      <Button
+        mode={newStatus === 'in_progress' ? 'contained' : 'outlined'}
+        onPress={() => setNewStatus('in_progress')}
+        style={styles.statusButton}
+        disabled={updating}
+      >
+        In Progress
+      </Button>
+      <Button
+        mode={newStatus === 'completed' ? 'contained' : 'outlined'}
+        onPress={() => setNewStatus('completed')}
+        style={styles.statusButton}
+        disabled={updating}
+      >
+        Completed
+      </Button>
+    </View>
+    <View style={styles.modalActions}>
+      <Button
+        mode="text"
+        onPress={() => setStatusModalVisible(false)}
+        disabled={updating}
+      >
+        Cancel
+      </Button>
+      <Button
+        mode="contained"
+        onPress={() => handleStatusChange(newStatus)}
+        loading={updating}
+        disabled={updating || !newStatus}
+      >
+        Update
+      </Button>
+    </View>
+  </Modal>
+);
+
+const renderNoteModal = () => (
+  <Modal
+    visible={noteModalVisible}
+    onDismiss={() => setNoteModalVisible(false)}
+    contentContainerStyle={styles.modalContainer}
+  >
+    <Text style={styles.modalTitle}>Add Note</Text>
+    <TextInput
+      label="Note"
+      value={note}
+      onChangeText={setNote}
+      style={styles.noteInput}
+      multiline
+      mode="outlined"
+    />
+    <View style={styles.modalActions}>
+      <Button
+        mode="text"
+        onPress={() => setNoteModalVisible(false)}
+        disabled={updating}
+      >
+        Cancel
+      </Button>
+      <Button
+        mode="contained"
+        onPress={handleAddNote}
+        loading={updating}
+        disabled={updating || !note.trim()}
+      >
+        Add
+      </Button>
+    </View>
+  </Modal>
+); 

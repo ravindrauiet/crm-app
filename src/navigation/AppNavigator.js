@@ -20,6 +20,7 @@ import ShopDetailsScreen from '../screens/customer/ShopDetailsScreen';
 // Shop Owner Screens
 import ShopDashboardScreen from '../screens/shop/ShopDashboardScreen';
 import RepairTicketsScreen from '../screens/shop/RepairTicketsScreen';
+import RepairCreateScreen from '../screens/shop/RepairCreateScreen';
 import CustomerListScreen from '../screens/shop/CustomerListScreen';
 import AnalyticsScreen from '../screens/shop/AnalyticsScreen';
 import ShopProfileScreen from '../screens/shop/ProfileScreen';
@@ -130,6 +131,11 @@ const AppNavigator = () => {
               name="RepairTickets" 
               component={RepairTicketsScreen}
               options={{ title: 'Repair Tickets' }}
+            />
+            <Stack.Screen 
+              name="RepairCreate" 
+              component={RepairCreateScreen}
+              options={{ title: 'Create Repair' }}
             />
             <Stack.Screen 
               name="CustomerList" 

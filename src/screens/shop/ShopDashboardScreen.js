@@ -434,7 +434,7 @@ export default function ShopDashboardScreen({ navigation }) {
       
       <Button 
         mode="contained" 
-        icon="package-variant-plus" 
+        icon="package-plus" 
         onPress={() => navigation.navigate('InventoryAdd')}
         style={styles.cardButton}
       >
@@ -503,7 +503,7 @@ export default function ShopDashboardScreen({ navigation }) {
           <Button 
             mode="contained"
             icon="plus"
-            onPress={() => navigation.navigate('NewRepair')}
+            onPress={() => navigation.navigate('RepairTickets', { screen: 'CreateRepair' })}
             style={styles.emptyButton}
           >
             New Repair
@@ -567,7 +567,7 @@ export default function ShopDashboardScreen({ navigation }) {
       <FAB
         style={styles.fab}
         icon="plus"
-        onPress={() => navigation.navigate('NewRepair')}
+        onPress={() => navigation.navigate('RepairTickets', { screen: 'CreateRepair' })}
         color="#fff"
       />
     </SafeAreaView>
