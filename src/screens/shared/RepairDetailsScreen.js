@@ -7,6 +7,7 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import StatusTimeline from '../../components/StatusTimeline';
+import { generateWarrantyCertificatePDF, shareWarrantyCertificatePDF, generateRepairPDF, shareRepairPDF } from '../../utils/pdfGenerator';
 
 const RepairDetailsScreen = ({ route, navigation }) => {
   const theme = useTheme();
@@ -24,6 +25,10 @@ const RepairDetailsScreen = ({ route, navigation }) => {
   const [price, setPrice] = useState('');
   const [customerInfo, setCustomerInfo] = useState(null);
   const [shopInfo, setShopInfo] = useState(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [warrantyModalVisible, setWarrantyModalVisible] = useState(false);
+  const [warrantyDays, setWarrantyDays] = useState('');
+  const [warrantyNotes, setWarrantyNotes] = useState('');
 
   useEffect(() => {
     if (!repair) {
@@ -34,6 +39,20 @@ const RepairDetailsScreen = ({ route, navigation }) => {
       fetchShopInfo(repair.shopId);
     }
   }, [repairId, repair]);
+
+  useEffect(() => {
+    // Debug logging for document section visibility
+    console.log('DEBUG - Document Section Visibility:');
+    console.log('User Type:', userType);
+    console.log('Repair Status:', repair?.status);
+    console.log('Should Show Document Section:', (userType === 'shop' || userType === 'shop_owner' || userType === 'customer') && repair?.status === 'completed');
+    
+    if (repair) {
+      console.log('Repair ID:', repair.id);
+      console.log('Warranty Days:', repair.warrantyDays);
+      console.log('Full Repair Data:', JSON.stringify(repair, null, 2));
+    }
+  }, [repair, userType]);
 
   const fetchRepairDetails = async () => {
     if (!repairId) {
@@ -438,6 +457,137 @@ const RepairDetailsScreen = ({ route, navigation }) => {
     </Portal>
   );
 
+  const generateAndShareWarrantyCertificate = async () => {
+    try {
+      setPdfLoading(true);
+      // Gather shop details for the certificate
+      const shopDetails = {
+        shopName: (userType === 'shop' || userType === 'shop_owner') ? (user?.shopName || 'Repair Shop') : (shopInfo?.name || 'Repair Shop'),
+        address: (userType === 'shop' || userType === 'shop_owner') ? (user?.address || '') : (shopInfo?.address || ''),
+        phone: (userType === 'shop' || userType === 'shop_owner') ? (user?.phone || '') : (shopInfo?.phone || ''),
+        email: (userType === 'shop' || userType === 'shop_owner') ? (user?.email || '') : (shopInfo?.email || ''),
+        website: (userType === 'shop' || userType === 'shop_owner') ? (user?.website || '') : (shopInfo?.website || '')
+      };
+      
+      // Share the warranty certificate
+      await shareWarrantyCertificatePDF(repair, shopDetails);
+      
+      Alert.alert('Success', 'Warranty certificate has been generated and shared!');
+    } catch (error) {
+      console.error('Error generating warranty certificate:', error);
+      Alert.alert('Error', 'Failed to generate warranty certificate');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const generateAndShareInvoice = async () => {
+    try {
+      setPdfLoading(true);
+      // Gather shop details for the invoice
+      const shopDetails = {
+        shopName: (userType === 'shop' || userType === 'shop_owner') ? (user?.shopName || 'Repair Shop') : (shopInfo?.name || 'Repair Shop'),
+        address: (userType === 'shop' || userType === 'shop_owner') ? (user?.address || '') : (shopInfo?.address || ''),
+        phone: (userType === 'shop' || userType === 'shop_owner') ? (user?.phone || '') : (shopInfo?.phone || ''),
+        email: (userType === 'shop' || userType === 'shop_owner') ? (user?.email || '') : (shopInfo?.email || ''),
+        website: (userType === 'shop' || userType === 'shop_owner') ? (user?.website || '') : (shopInfo?.website || '')
+      };
+      
+      // Share the invoice
+      await shareRepairPDF(repair, shopDetails);
+      
+      Alert.alert('Success', 'Repair invoice has been generated and shared!');
+    } catch (error) {
+      console.error('Error generating repair invoice:', error);
+      Alert.alert('Error', 'Failed to generate repair invoice');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const updateWarrantyInfo = async () => {
+    if (!warrantyDays || isNaN(parseInt(warrantyDays)) || parseInt(warrantyDays) <= 0) {
+      Alert.alert('Error', 'Please enter a valid warranty period in days');
+      return;
+    }
+
+    try {
+      const repairRef = doc(db, 'repairs', repairId);
+      
+      const updateData = {
+        warrantyDays: warrantyDays,
+        warrantyNotes: warrantyNotes,
+        updatedAt: Timestamp.now()
+      };
+      
+      await updateDoc(repairRef, updateData);
+      
+      // Update local state
+      setRepair({
+        ...repair,
+        warrantyDays,
+        warrantyNotes,
+        updatedAt: new Date()
+      });
+      
+      setWarrantyModalVisible(false);
+      
+      // Generate and share the warranty certificate
+      generateAndShareWarrantyCertificate();
+      
+    } catch (error) {
+      console.error('Error updating warranty info:', error);
+      Alert.alert('Error', 'Failed to update warranty information');
+    }
+  };
+
+  const renderWarrantyUpdateModal = () => (
+    <Portal>
+      <Modal 
+        visible={warrantyModalVisible} 
+        onDismiss={() => setWarrantyModalVisible(false)}
+        contentContainerStyle={styles.modalContainer}
+      >
+        <Text style={styles.modalTitle}>Warranty Information</Text>
+        
+        <TextInput
+          label="Warranty Period (Days)"
+          value={warrantyDays}
+          onChangeText={setWarrantyDays}
+          keyboardType="numeric"
+          style={styles.textInput}
+          mode="outlined"
+        />
+        
+        <TextInput
+          label="Warranty Terms & Conditions"
+          value={warrantyNotes}
+          onChangeText={setWarrantyNotes}
+          multiline
+          numberOfLines={4}
+          style={styles.messageInput}
+          mode="outlined"
+          placeholder="Describe what's covered under warranty"
+        />
+        
+        <View style={styles.modalActions}>
+          <Button 
+            mode="text" 
+            onPress={() => setWarrantyModalVisible(false)}
+          >
+            Cancel
+          </Button>
+          <Button 
+            mode="contained" 
+            onPress={updateWarrantyInfo}
+          >
+            Save & Generate
+          </Button>
+        </View>
+      </Modal>
+    </Portal>
+  );
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -691,31 +841,99 @@ const RepairDetailsScreen = ({ route, navigation }) => {
             ))}
           </Surface>
         )}
-      </ScrollView>
-      
-      <FAB
-        style={styles.messageFab}
-        icon="message"
-        onPress={() => setMessageModalVisible(true)}
-        color="#fff"
-      />
-      
-      {userType === 'shop' && (
+
+        {/* Document Download Section - Update the condition to check for shop_owner */}
+        {console.log('RENDER - Document Section Condition:', 
+          `userType=${userType}`, 
+          `repair.status=${repair?.status}`, 
+          `condition=${((userType === 'shop' || userType === 'shop_owner' || userType === 'customer') && repair?.status === 'completed')}`)}
+        
+        {((userType === 'shop' || userType === 'shop_owner' || userType === 'customer') && repair?.status === 'completed') ? (
+          <Surface style={styles.card}>
+            <View style={styles.sectionHeader}>
+              <MaterialCommunityIcons name="file-document" size={24} color="#2196F3" />
+              <Text style={styles.sectionTitle}>Documents</Text>
+            </View>
+            <Divider style={styles.divider} />
+            
+            <View style={styles.documentsContainer}>
+              <Text style={{marginBottom: 10}}>Debug: Document section is visible</Text>
+              <Button 
+                mode="contained" 
+                icon="file-pdf-box"
+                onPress={() => {
+                  console.log('Invoice button pressed');
+                  generateAndShareInvoice();
+                }}
+                style={styles.documentButton}
+                loading={pdfLoading}
+                disabled={pdfLoading}
+              >
+                Repair Invoice
+              </Button>
+              
+              <Button 
+                mode="contained" 
+                icon="certificate"
+                onPress={() => {
+                  console.log('Certificate button pressed');
+                  if (repair.warrantyDays) {
+                    console.log('Using existing warranty:', repair.warrantyDays);
+                    // If warranty already exists, generate certificate directly
+                    generateAndShareWarrantyCertificate();
+                  } else if (userType === 'shop' || userType === 'shop_owner') {
+                    console.log('Shop user - showing warranty modal');
+                    // If no warranty and user is shop, show modal to set warranty
+                    setWarrantyDays('30'); // Default suggestion
+                    setWarrantyNotes('Covers defects in parts and workmanship. Does not cover physical damage, water damage, or other accidental damage after repair.');
+                    setWarrantyModalVisible(true);
+                  } else {
+                    console.log('Customer user - generating without warranty');
+                    // For customer, just generate without warranty
+                    generateAndShareWarrantyCertificate();
+                  }
+                }}
+                style={styles.documentButton}
+                loading={pdfLoading}
+                disabled={pdfLoading}
+                color={theme.colors.accent}
+              >
+                {repair.warrantyDays ? `Warranty Certificate (${repair.warrantyDays} days)` : 'Service Certificate'}
+              </Button>
+            </View>
+          </Surface>
+        ) : (
+          <Text style={{padding: 10, backgroundColor: '#ffecb3', borderRadius: 5, marginBottom: 16}}>
+            Debug: Document section is hidden. User Type: {userType}, Repair Status: {repair?.status}
+          </Text>
+        )}
+
+        {/* Message FAB */}
         <FAB
-          style={styles.statusFab}
-          icon="pencil"
-          onPress={() => {
-            setNewStatus(repair.status || 'pending');
-            setEstimatedCompletion(repair.estimatedTime || '');
-            setPrice(repair.estimatedCost || '');
-            setStatusUpdateVisible(true);
-          }}
+          style={styles.messageFab}
+          icon="message"
+          onPress={() => setMessageModalVisible(true)}
           color="#fff"
         />
-      )}
-      
-      {renderMessageModal()}
-      {renderStatusUpdateModal()}
+        
+        {userType === 'shop' && (
+          <FAB
+            style={styles.statusFab}
+            icon="pencil"
+            onPress={() => {
+              setNewStatus(repair.status || 'pending');
+              setEstimatedCompletion(repair.estimatedTime || '');
+              setPrice(repair.estimatedCost || '');
+              setStatusUpdateVisible(true);
+            }}
+            color="#fff"
+          />
+        )}
+        
+        {renderMessageModal()}
+        {renderStatusUpdateModal()}
+        {renderWarrantyUpdateModal()}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -1032,6 +1250,14 @@ const styles = StyleSheet.create({
   },
   textInput: {
     marginBottom: 16,
+  },
+  documentsContainer: {
+    gap: 12,
+    marginTop: 8,
+  },
+  documentButton: {
+    padding: 8,
+    borderRadius: 8,
   },
 });
 
