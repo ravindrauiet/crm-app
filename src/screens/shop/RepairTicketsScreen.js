@@ -26,6 +26,7 @@ export default function RepairTicketsScreen({ navigation }) {
   const [note, setNote] = useState('');
   const [updating, setUpdating] = useState(false);
   const [newStatus, setNewStatus] = useState('pending');
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     fetchRepairs();
@@ -46,40 +47,115 @@ export default function RepairTicketsScreen({ navigation }) {
         return;
       }
       
+      try {
+        // First try with ordered queries (requires index)
+        let q = query(
+          repairsRef,
+          where('shopId', '==', userId),
+          orderBy('createdAt', 'desc')
+        );
+
+        if (filter !== 'all') {
+          q = query(
+            repairsRef,
+            where('shopId', '==', userId),
+            where('status', '==', filter),
+            orderBy('createdAt', 'desc')
+          );
+        }
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const repairsList = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setRepairs(repairsList);
+          setLoading(false);
+          setRefreshing(false);
+        }, (error) => {
+          console.error('Error in repair snapshot listener:', error);
+          
+          // Handle index error with a fallback
+          if (error.message && error.message.includes('index')) {
+            console.log('Index error, falling back to simpler query');
+            handleIndexError();
+          } else {
+            Alert.alert('Error', 'Failed to listen for repair updates');
+            setLoading(false);
+            setRefreshing(false);
+          }
+        });
+
+        return unsubscribe;
+      } catch (error) {
+        // Handle expected errors from query
+        if (error.message && error.message.includes('index')) {
+          console.log('Index error in try block, falling back to simpler query');
+          return handleIndexError();
+        } else {
+          throw error; // Re-throw unexpected errors
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching repairs:', error);
+      Alert.alert('Error', 'Failed to load repairs');
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleIndexError = async () => {
+    try {
+      const repairsRef = collection(db, 'repairs');
+      const userId = user?.uid || user?.id;
+      
+      // Simpler query without ordering (doesn't require composite index)
       let q = query(
         repairsRef,
-        where('shopId', '==', userId),
-        orderBy('createdAt', 'desc')
+        where('shopId', '==', userId)
       );
-
+      
       if (filter !== 'all') {
         q = query(
           repairsRef,
           where('shopId', '==', userId),
-          where('status', '==', filter),
-          orderBy('createdAt', 'desc')
+          where('status', '==', filter)
         );
       }
-
+      
       const unsubscribe = onSnapshot(q, (snapshot) => {
-        const repairsList = snapshot.docs.map(doc => ({
+        let repairsList = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
+        
+        // Sort manually on client side
+        repairsList.sort((a, b) => {
+          const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+          const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+          return dateB - dateA;  // newest first
+        });
+        
         setRepairs(repairsList);
         setLoading(false);
         setRefreshing(false);
+        
+        // Show alert to create index
+        Alert.alert(
+          'Firebase Index Required',
+          'To improve performance, please create the required index by clicking the link in your console or Firebase dashboard.',
+          [{ text: 'OK' }]
+        );
       }, (error) => {
-        console.error('Error in repair snapshot listener:', error);
+        console.error('Error in fallback repair listener:', error);
         Alert.alert('Error', 'Failed to listen for repair updates');
         setLoading(false);
         setRefreshing(false);
       });
-
+      
       return unsubscribe;
     } catch (error) {
-      console.error('Error fetching repairs:', error);
-      Alert.alert('Error', 'Failed to load repairs');
+      console.error('Error in fallback query:', error);
       setLoading(false);
       setRefreshing(false);
     }
@@ -345,7 +421,9 @@ export default function RepairTicketsScreen({ navigation }) {
             <IconButton
               icon="dots-vertical"
               size={24}
-              onPress={() => {
+              onPress={(event) => {
+                // Get position of the button
+                setMenuPosition({ x: event.nativeEvent.pageX - 160, y: event.nativeEvent.pageY });
                 setSelectedRepair(repair);
                 setMenuVisible(true);
               }}
@@ -354,7 +432,7 @@ export default function RepairTicketsScreen({ navigation }) {
             <Menu
               visible={menuVisible && selectedRepair?.id === repair.id}
               onDismiss={() => setMenuVisible(false)}
-              anchor={{ x: 0, y: 0 }}
+              anchor={menuPosition}
               style={styles.menu}
             >
               <Menu.Item
@@ -448,7 +526,7 @@ export default function RepairTicketsScreen({ navigation }) {
               <View style={styles.servicesContainer}>
                 {repair.services.slice(0, 2).map((service, index) => (
                   <Chip 
-                    key={index} 
+                    key={`service-${index}-${service}`}
                     style={styles.serviceChip}
                     textStyle={styles.serviceChipText}
                     mode="outlined"
@@ -458,6 +536,7 @@ export default function RepairTicketsScreen({ navigation }) {
                 ))}
                 {repair.services.length > 2 && (
                   <Chip 
+                    key="service-more"
                     style={styles.serviceChip}
                     textStyle={styles.serviceChipText}
                     mode="outlined"
@@ -736,7 +815,11 @@ export default function RepairTicketsScreen({ navigation }) {
           }
         >
           {repairs.length > 0 ? 
-            getSortedRepairs().map(repair => renderRepairCard(repair)) : 
+            getSortedRepairs().map(repair => (
+              <React.Fragment key={repair.id}>
+                {renderRepairCard(repair)}
+              </React.Fragment>
+            )) : 
             renderEmptyState()
           }
         </ScrollView>
@@ -892,6 +975,7 @@ const styles = StyleSheet.create({
   },
   menu: {
     elevation: 4,
+    minWidth: 180,
   },
   divider: {
     marginVertical: 12,

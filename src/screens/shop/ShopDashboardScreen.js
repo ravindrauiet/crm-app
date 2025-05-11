@@ -434,7 +434,7 @@ export default function ShopDashboardScreen({ navigation }) {
       
       <Button 
         mode="contained" 
-        icon="package-plus" 
+        icon="package-variant-plus" 
         onPress={() => navigation.navigate('InventoryAdd')}
         style={styles.cardButton}
       >
