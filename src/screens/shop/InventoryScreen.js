@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
-import { Text, Surface, Button, IconButton, TextInput, Divider, Chip, FAB, Menu, Dialog, ActivityIndicator, Searchbar } from 'react-native-paper';
+import { Text, Surface, Button, IconButton, TextInput, Divider, Chip, FAB, Menu, Dialog, ActivityIndicator, Searchbar, Title } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -310,18 +310,64 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  headerSection: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  screenTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#2196F3',
+  },
+  screenSubtitle: {
+    fontSize: 16,
+    color: '#757575',
+    marginTop: 4,
+  },
   content: {
     padding: 16,
   },
   searchbar: {
-    margin: 16,
+    marginHorizontal: 16,
+    marginVertical: 12,
     elevation: 2,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    paddingTop: 0,
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 16,
+    marginHorizontal: 6,
+    elevation: 2,
+    backgroundColor: '#ffffff',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2196F3',
+    marginVertical: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontWeight: '500',
   },
   itemCard: {
     marginBottom: 16,
-    borderRadius: 8,
+    borderRadius: 16,
     elevation: 2,
     overflow: 'hidden',
+    backgroundColor: '#ffffff',
   },
   itemHeader: {
     padding: 16,
@@ -335,13 +381,16 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#333',
   },
   itemId: {
     fontSize: 14,
     color: '#757575',
+    marginTop: 4,
   },
   divider: {
     height: 1,
+    backgroundColor: '#e9ecef',
   },
   itemDetails: {
     padding: 16,
@@ -351,11 +400,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   stockLabel: {
     fontSize: 16,
     fontWeight: '500',
+    color: '#333',
   },
   stockIndicator: {
     flexDirection: 'row',
@@ -368,27 +418,37 @@ const styles = StyleSheet.create({
   },
   lowStockChip: {
     borderColor: '#F44336',
+    height: 28,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   detailLabel: {
     color: '#757575',
+    fontSize: 14,
   },
   detailValue: {
     fontWeight: '500',
+    color: '#333',
+    fontSize: 14,
   },
   description: {
-    marginTop: 8,
+    marginTop: 12,
+    padding: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
   },
   descriptionLabel: {
     color: '#757575',
     marginBottom: 4,
+    fontSize: 14,
   },
   descriptionText: {
     fontStyle: 'italic',
+    color: '#333',
+    fontSize: 14,
   },
   itemActions: {
     flexDirection: 'row',
@@ -398,17 +458,20 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     marginLeft: 8,
+    borderRadius: 8,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
+    marginTop: 30,
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     marginTop: 16,
     marginBottom: 8,
+    color: '#2196F3',
   },
   emptySubtitle: {
     textAlign: 'center',
@@ -417,6 +480,7 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     marginTop: 16,
+    borderRadius: 8,
   },
   centered: {
     flex: 1,
@@ -429,5 +493,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: '#2196F3',
+    borderRadius: 28,
+    elevation: 6,
   },
 }); 

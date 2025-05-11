@@ -248,10 +248,10 @@ export default function EditShopProfileScreen({ navigation }) {
       
       {Object.entries(shopData.workingHours).map(([day, hours]) => (
         <View key={day} style={styles.workingHoursRow}>
-          <Text variant="bodyMedium" style={styles.dayLabel}>
+          <Text variant="bodyMedium" style={styles.day}>
             {day.charAt(0).toUpperCase() + day.slice(1)}
           </Text>
-          <View style={styles.timeInputs}>
+          <View style={styles.timeField}>
             <TextInput
               value={hours.open}
               onChangeText={text => setShopData(prev => ({
@@ -261,10 +261,12 @@ export default function EditShopProfileScreen({ navigation }) {
                   [day]: { ...hours, open: text }
                 }
               }))}
-              style={styles.timeInput}
+              style={styles.timeField}
               placeholder="Open"
             />
-            <Text style={styles.timeSeparator}>to</Text>
+          </View>
+          <Text style={styles.timeSeparator}>to</Text>
+          <View style={styles.timeField}>
             <TextInput
               value={hours.close}
               onChangeText={text => setShopData(prev => ({
@@ -274,10 +276,13 @@ export default function EditShopProfileScreen({ navigation }) {
                   [day]: { ...hours, close: text }
                 }
               }))}
-              style={styles.timeInput}
+              style={styles.timeField}
               placeholder="Close"
             />
           </View>
+          {hours.close === '' && (
+            <Text style={styles.dayOff}>Closed</Text>
+          )}
         </View>
       ))}
     </Surface>
@@ -285,24 +290,41 @@ export default function EditShopProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView>
+      <View style={styles.header}>
+        <IconButton
+          icon="arrow-left"
+          size={28}
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        />
+      </View>
+      
+      <ScrollView contentContainerStyle={styles.content}>
         {renderLogoSection()}
         {renderBasicInfo()}
         {renderContactInfo()}
         {renderWorkingHours()}
+        
+        <View style={styles.buttonContainer}>
+          <Button
+            mode="outlined"
+            onPress={() => navigation.goBack()}
+            style={styles.cancelButton}
+            labelStyle={styles.cancelButtonLabel}
+          >
+            Cancel
+          </Button>
+          <Button
+            mode="contained"
+            onPress={handleSave}
+            style={styles.saveButton}
+            loading={saving}
+            disabled={saving}
+          >
+            Save Changes
+          </Button>
+        </View>
       </ScrollView>
-
-      <Surface style={styles.footer}>
-        <Button
-          mode="contained"
-          onPress={handleSave}
-          loading={saving}
-          disabled={saving}
-          style={styles.saveButton}
-        >
-          Save Changes
-        </Button>
-      </Surface>
     </SafeAreaView>
   );
 }
@@ -312,25 +334,39 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-  logoSection: {
-    margin: 16,
-    marginTop: 0,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  backButton: {
+    marginRight: 16,
+  },
+  content: {
     padding: 16,
+    paddingBottom: 40,
+  },
+  logoSection: {
+    alignItems: 'center',
+    padding: 20,
     borderRadius: 16,
     elevation: 2,
-    alignItems: 'center',
+    marginBottom: 16,
+    backgroundColor: '#ffffff',
   },
   logoContainer: {
     position: 'relative',
     marginBottom: 8,
   },
   logo: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
   },
   placeholderLogo: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#f5f5f5',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -338,55 +374,75 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#fff',
-    elevation: 4,
+    backgroundColor: '#2196F3',
+    borderRadius: 18,
   },
   logoHint: {
-    color: '#666',
+    color: '#757575',
+    marginTop: 8,
   },
   section: {
-    margin: 16,
-    marginTop: 0,
-    padding: 16,
+    padding: 20,
     borderRadius: 16,
     elevation: 2,
+    marginBottom: 16,
+    backgroundColor: '#ffffff',
   },
   sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
     marginBottom: 8,
   },
   divider: {
-    marginBottom: 16,
+    marginVertical: 16,
+    backgroundColor: '#e9ecef',
   },
   input: {
-    marginBottom: 8,
-    backgroundColor: '#fff',
+    marginBottom: 12,
+    backgroundColor: '#ffffff',
   },
   workingHoursRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
   },
-  dayLabel: {
+  day: {
     width: 100,
+    marginRight: 10,
+    fontWeight: '500',
   },
-  timeInputs: {
+  timeField: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginHorizontal: 4,
   },
-  timeInput: {
-    flex: 1,
-    backgroundColor: '#fff',
+  dayOff: {
+    color: '#F44336',
+    textAlign: 'center',
   },
   timeSeparator: {
     marginHorizontal: 8,
     color: '#666',
   },
-  footer: {
-    padding: 16,
-    elevation: 8,
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    marginBottom: 40,
+  },
+  cancelButton: {
+    flex: 1,
+    marginRight: 8,
+    borderRadius: 8,
+    borderColor: '#dddddd',
+  },
+  cancelButtonLabel: {
+    color: '#757575',
   },
   saveButton: {
+    flex: 1,
+    marginLeft: 8,
     borderRadius: 8,
+    backgroundColor: '#2196F3',
   },
 }); 

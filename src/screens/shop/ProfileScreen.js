@@ -220,7 +220,7 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView>
+      <ScrollView contentContainerStyle={styles.content}>
         {renderStats()}
         {renderProfileSection()}
         {renderContactSection()}
@@ -229,20 +229,21 @@ export default function ProfileScreen({ navigation }) {
           <List.Section>
             <List.Item
               title="Settings"
-              left={props => <List.Icon {...props} icon="cog" />}
-              right={props => <List.Icon {...props} icon="chevron-right" />}
+              left={props => <List.Icon {...props} icon="cog" color="#555" />}
+              right={props => <List.Icon {...props} icon="chevron-right" color="#2196F3" />}
               onPress={() => navigation.navigate('Settings')}
             />
             <List.Item
               title="Help & Support"
-              left={props => <List.Icon {...props} icon="help-circle" />}
-              right={props => <List.Icon {...props} icon="chevron-right" />}
+              left={props => <List.Icon {...props} icon="help-circle" color="#555" />}
+              right={props => <List.Icon {...props} icon="chevron-right" color="#2196F3" />}
               onPress={() => navigation.navigate('Support')}
             />
             <List.Item
               title="Sign Out"
-              left={props => <List.Icon {...props} icon="logout" color={theme.colors.error} />}
+              left={props => <List.Icon {...props} icon="logout" color="#F44336" />}
               onPress={handleSignOut}
+              titleStyle={{ color: '#F44336' }}
             />
           </List.Section>
         </Surface>
@@ -256,23 +257,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  content: {
+    padding: 16,
+    paddingBottom: 40,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
   },
   statsCard: {
-    margin: 16,
-    marginBottom: 8,
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     elevation: 2,
+    marginBottom: 16,
+    backgroundColor: '#ffffff',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -281,26 +284,32 @@ const styles = StyleSheet.create({
   },
   statItem: {
     width: '48%',
-    marginBottom: 16,
     alignItems: 'center',
+    padding: 12,
+    marginBottom: 8,
   },
   statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2196F3',
     marginBottom: 4,
   },
   statLabel: {
-    color: '#666',
+    fontSize: 12,
+    color: '#6c757d',
+    fontWeight: '500',
   },
   profileCard: {
-    margin: 16,
-    marginTop: 8,
-    marginBottom: 8,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     elevation: 2,
+    marginBottom: 16,
+    backgroundColor: '#ffffff',
   },
   profileHeader: {
-    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 16,
   },
   logo: {
     width: 80,
@@ -309,7 +318,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   placeholderLogo: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#f5f5f5',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -317,28 +326,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   subtitle: {
-    color: '#666',
+    color: '#757575',
     marginTop: 4,
   },
+  divider: {
+    backgroundColor: '#e9ecef',
+    height: 1,
+    marginVertical: 8,
+  },
   contactCard: {
-    margin: 16,
-    marginTop: 8,
-    marginBottom: 8,
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     elevation: 2,
+    marginBottom: 16,
+    backgroundColor: '#ffffff',
   },
   sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
     marginBottom: 8,
   },
-  divider: {
-    marginVertical: 12,
-  },
   settingsCard: {
-    margin: 16,
-    marginTop: 8,
-    marginBottom: 16,
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 16,
     elevation: 2,
+    backgroundColor: '#ffffff',
   },
 }); 

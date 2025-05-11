@@ -250,14 +250,39 @@ export default function DashboardScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
+        contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={["#2196F3"]}
+          />
         }
       >
         {renderStats()}
         {renderRepairStatus()}
         {renderRevenueChart()}
         {renderRecentRepairs()}
+        
+        <View style={styles.buttonSection}>
+          <Button
+            mode="contained"
+            icon="wrench"
+            onPress={() => navigation.navigate('RepairTickets')}
+            style={styles.actionButton}
+          >
+            View All Repairs
+          </Button>
+          
+          <Button
+            mode="contained"
+            icon="plus"
+            onPress={() => navigation.navigate('CreateRepair')}
+            style={[styles.actionButton, styles.createButton]}
+          >
+            Create New Repair
+          </Button>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -268,70 +293,90 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  content: {
+    padding: 16,
+    paddingBottom: 40,
+  },
   statsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 16,
-    gap: 16,
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
   statCard: {
-    flex: 1,
-    minWidth: '45%',
+    width: '48%',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     elevation: 2,
+    marginBottom: 16,
     alignItems: 'center',
+    backgroundColor: '#ffffff',
   },
   statValue: {
-    marginTop: 8,
-    marginBottom: 4,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2196F3',
+    marginVertical: 8,
   },
   statLabel: {
-    color: '#666',
+    fontSize: 12,
+    color: '#6c757d',
+    fontWeight: '500',
   },
   statusCard: {
-    margin: 16,
-    marginTop: 0,
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     elevation: 2,
+    marginBottom: 16,
+    backgroundColor: '#ffffff',
   },
   sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
     marginBottom: 8,
   },
   divider: {
-    marginBottom: 16,
+    height: 1,
+    backgroundColor: '#e9ecef',
+    marginVertical: 16,
   },
   statusGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    marginTop: 8,
   },
   statusItem: {
     alignItems: 'center',
+    padding: 8,
   },
   statusValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
     marginBottom: 4,
   },
   statusLabel: {
-    color: '#666',
+    fontSize: 12,
+    color: '#6c757d',
+    fontWeight: '500',
   },
   chartCard: {
-    margin: 16,
-    marginTop: 0,
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     elevation: 2,
+    marginBottom: 16,
+    backgroundColor: '#ffffff',
   },
   chart: {
     marginVertical: 8,
     borderRadius: 16,
   },
   repairsCard: {
-    margin: 16,
-    marginTop: 0,
-    padding: 16,
-    borderRadius: 12,
+    padding: 20,
+    borderRadius: 16,
     elevation: 2,
+    marginBottom: 16,
+    backgroundColor: '#ffffff',
   },
   repairsHeader: {
     flexDirection: 'row',
@@ -343,15 +388,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
   },
   repairInfo: {
     flex: 1,
   },
   customerName: {
-    color: '#666',
-    marginTop: 2,
+    color: '#757575',
+    marginTop: 4,
   },
   statusChip: {
-    height: 24,
+    height: 28,
+  },
+  buttonSection: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  actionButton: {
+    marginBottom: 12,
+    borderRadius: 8,
+    backgroundColor: '#2196F3',
+  },
+  createButton: {
+    backgroundColor: '#4CAF50',
   },
 }); 

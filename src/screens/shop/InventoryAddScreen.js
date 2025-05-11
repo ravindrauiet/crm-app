@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { Text, TextInput, Button, Surface, HelperText, Divider } from 'react-native-paper';
+import { Text, TextInput, Button, Surface, HelperText, Divider, IconButton, Title } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { addInventoryItem, useInventoryStatus } from '../../store/slices/inventorySlice';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function InventoryAddScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -117,13 +118,29 @@ export default function InventoryAddScreen({ navigation }) {
   
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.headerSection}>
+        <IconButton
+          icon="arrow-left"
+          size={28}
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        />
+        <View>
+          <Text style={styles.screenTitle}>Add Inventory Item</Text>
+          <Text style={styles.screenSubtitle}>Enter item details</Text>
+        </View>
+      </View>
+      
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoid}
       >
         <ScrollView contentContainerStyle={styles.content}>
           <Surface style={styles.formCard}>
-            <Text variant="titleLarge" style={styles.title}>Add Inventory Item</Text>
+            <View style={styles.formSection}>
+              <MaterialCommunityIcons name="information-outline" size={24} color="#2196F3" />
+              <Text style={styles.sectionTitle}>Basic Information</Text>
+            </View>
             
             <TextInput
               label="Item Name *"
@@ -132,6 +149,8 @@ export default function InventoryAddScreen({ navigation }) {
               mode="outlined"
               style={styles.input}
               error={!!errors.name}
+              outlineColor="#dddddd"
+              activeOutlineColor="#2196F3"
             />
             {errors.name && <HelperText type="error">{errors.name}</HelperText>}
             
@@ -141,6 +160,8 @@ export default function InventoryAddScreen({ navigation }) {
               onChangeText={(text) => updateFormField('partId', text)}
               mode="outlined"
               style={styles.input}
+              outlineColor="#dddddd"
+              activeOutlineColor="#2196F3"
             />
             
             <TextInput
@@ -149,9 +170,16 @@ export default function InventoryAddScreen({ navigation }) {
               onChangeText={(text) => updateFormField('category', text)}
               mode="outlined"
               style={styles.input}
+              outlineColor="#dddddd"
+              activeOutlineColor="#2196F3"
             />
             
             <Divider style={styles.divider} />
+            
+            <View style={styles.formSection}>
+              <MaterialCommunityIcons name="package-variant" size={24} color="#2196F3" />
+              <Text style={styles.sectionTitle}>Inventory Details</Text>
+            </View>
             
             <TextInput
               label="Current Stock Level *"
@@ -161,6 +189,8 @@ export default function InventoryAddScreen({ navigation }) {
               style={styles.input}
               keyboardType="numeric"
               error={!!errors.stockLevel}
+              outlineColor="#dddddd"
+              activeOutlineColor="#2196F3"
             />
             {errors.stockLevel && <HelperText type="error">{errors.stockLevel}</HelperText>}
             
@@ -172,6 +202,8 @@ export default function InventoryAddScreen({ navigation }) {
               style={styles.input}
               keyboardType="numeric"
               error={!!errors.minStockLevel}
+              outlineColor="#dddddd"
+              activeOutlineColor="#2196F3"
             />
             {errors.minStockLevel && <HelperText type="error">{errors.minStockLevel}</HelperText>}
             
@@ -183,10 +215,17 @@ export default function InventoryAddScreen({ navigation }) {
               style={styles.input}
               keyboardType="numeric"
               error={!!errors.unitCost}
+              outlineColor="#dddddd"
+              activeOutlineColor="#2196F3"
             />
             {errors.unitCost && <HelperText type="error">{errors.unitCost}</HelperText>}
             
             <Divider style={styles.divider} />
+            
+            <View style={styles.formSection}>
+              <MaterialCommunityIcons name="truck-delivery" size={24} color="#2196F3" />
+              <Text style={styles.sectionTitle}>Additional Details</Text>
+            </View>
             
             <TextInput
               label="Supplier"
@@ -194,6 +233,8 @@ export default function InventoryAddScreen({ navigation }) {
               onChangeText={(text) => updateFormField('supplier', text)}
               mode="outlined"
               style={styles.input}
+              outlineColor="#dddddd"
+              activeOutlineColor="#2196F3"
             />
             
             <TextInput
@@ -202,6 +243,8 @@ export default function InventoryAddScreen({ navigation }) {
               onChangeText={(text) => updateFormField('location', text)}
               mode="outlined"
               style={styles.input}
+              outlineColor="#dddddd"
+              activeOutlineColor="#2196F3"
             />
             
             <TextInput
@@ -212,20 +255,23 @@ export default function InventoryAddScreen({ navigation }) {
               style={styles.input}
               multiline
               numberOfLines={3}
+              outlineColor="#dddddd"
+              activeOutlineColor="#2196F3"
             />
             
             <View style={styles.buttonContainer}>
               <Button
                 mode="outlined"
                 onPress={() => navigation.goBack()}
-                style={styles.button}
+                style={styles.cancelButton}
+                labelStyle={styles.cancelButtonLabel}
               >
                 Cancel
               </Button>
               <Button
                 mode="contained"
                 onPress={handleSubmit}
-                style={styles.button}
+                style={styles.submitButton}
                 loading={status === 'loading'}
                 disabled={status === 'loading'}
               >
@@ -244,33 +290,74 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  headerSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  backButton: {
+    marginRight: 16,
+  },
+  screenTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#2196F3',
+  },
+  screenSubtitle: {
+    fontSize: 16,
+    color: '#757575',
+    marginTop: 4,
+  },
   keyboardAvoid: {
     flex: 1,
   },
   content: {
     padding: 16,
+    paddingBottom: 40,
   },
   formCard: {
-    padding: 16,
-    borderRadius: 8,
+    padding: 20,
+    borderRadius: 16,
     elevation: 2,
+    backgroundColor: '#ffffff',
   },
-  title: {
+  formSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
-    textAlign: 'center',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 8,
+    color: '#333',
   },
   input: {
-    marginBottom: 8,
+    marginBottom: 12,
+    backgroundColor: '#ffffff',
   },
   divider: {
-    marginVertical: 16,
+    marginVertical: 24,
+    backgroundColor: '#e9ecef',
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 24,
   },
-  button: {
+  cancelButton: {
     width: '48%',
+    borderRadius: 8,
+    borderColor: '#dddddd',
+  },
+  cancelButtonLabel: {
+    color: '#757575',
+  },
+  submitButton: {
+    width: '48%',
+    borderRadius: 8,
+    backgroundColor: '#2196F3',
   }
 }); 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
-import { Text, Surface, Divider, Chip, ActivityIndicator } from 'react-native-paper';
+import { Text, Surface, Divider, Chip, ActivityIndicator, IconButton, Title } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -176,15 +176,52 @@ export default function InventoryAuditLogScreen({ route, navigation }) {
   
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.headerSection}>
+        <IconButton
+          icon="arrow-left"
+          size={28}
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        />
+        <View>
+          <Text style={styles.screenTitle}>Inventory History</Text>
+          <Text style={styles.screenSubtitle}>{item?.name || 'Loading...'}</Text>
+        </View>
+      </View>
+      
       {item && (
         <Surface style={styles.itemSummary}>
-          <Text style={styles.itemName}>{item.name}</Text>
+          <View style={styles.summaryRow}>
+            <MaterialCommunityIcons name="package-variant" size={24} color="#2196F3" />
+            <Text style={styles.itemName}>{item.name}</Text>
+          </View>
           <View style={styles.itemDetails}>
-            <Text>Current Stock: <Text style={styles.bold}>{item.stockLevel}</Text></Text>
-            {item.partId && <Text>ID: <Text style={styles.bold}>{item.partId}</Text></Text>}
+            <View style={styles.detailGroup}>
+              <Text style={styles.detailLabel}>Current Stock:</Text>
+              <Text style={[
+                styles.detailValue,
+                { color: item.stockLevel <= (item.minStockLevel || 5) ? '#F44336' : '#4CAF50' }
+              ]}>
+                {item.stockLevel}
+              </Text>
+            </View>
+            
+            {item.partId && (
+              <View style={styles.detailGroup}>
+                <Text style={styles.detailLabel}>Part ID:</Text>
+                <Text style={styles.detailValue}>{item.partId}</Text>
+              </View>
+            )}
           </View>
         </Surface>
       )}
+      
+      <View style={styles.sectionHeader}>
+        <Title style={styles.sectionTitle}>
+          <MaterialCommunityIcons name="history" size={22} color="#2196F3" />
+          {' '}Activity Log
+        </Title>
+      </View>
       
       <ScrollView
         contentContainerStyle={styles.content}
@@ -192,6 +229,7 @@ export default function InventoryAuditLogScreen({ route, navigation }) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
+            colors={["#2196F3"]}
           />
         }
       >
@@ -209,6 +247,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  headerSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 10,
+  },
+  backButton: {
+    marginRight: 16,
+  },
+  screenTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#2196F3',
+  },
+  screenSubtitle: {
+    fontSize: 16,
+    color: '#757575',
+    marginTop: 4,
+  },
   content: {
     padding: 16,
     paddingBottom: 24,
@@ -216,29 +274,58 @@ const styles = StyleSheet.create({
   itemSummary: {
     padding: 16,
     margin: 16,
-    borderRadius: 8,
+    borderRadius: 16,
     elevation: 2,
+    backgroundColor: '#ffffff',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   itemName: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 4,
+    marginLeft: 8,
+    color: '#333',
   },
   itemDetails: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
   },
-  bold: {
+  detailGroup: {
+    alignItems: 'center',
+  },
+  detailLabel: {
+    color: '#757575',
+    fontSize: 14,
+  },
+  detailValue: {
     fontWeight: 'bold',
+    fontSize: 18,
+    marginTop: 4,
+  },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
   },
   logCard: {
     marginBottom: 16,
-    borderRadius: 8,
-    elevation: 1,
+    borderRadius: 16,
+    elevation: 2,
     overflow: 'hidden',
+    backgroundColor: '#ffffff',
   },
   logHeader: {
-    padding: 12,
+    padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -248,11 +335,11 @@ const styles = StyleSheet.create({
     height: 28,
   },
   timestamp: {
-    fontSize: 12,
     color: '#757575',
+    fontSize: 13,
   },
   divider: {
-    height: 1,
+    backgroundColor: '#e9ecef',
   },
   logDetails: {
     padding: 16,
@@ -264,8 +351,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   quantityLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
+    color: '#333',
   },
   quantityValue: {
     fontSize: 18,
@@ -273,76 +361,79 @@ const styles = StyleSheet.create({
   },
   stockRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingVertical: 8,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 4,
+    backgroundColor: '#f9f9f9',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
   },
   stockItem: {
     alignItems: 'center',
+    flex: 1,
   },
   stockLabel: {
-    fontSize: 12,
     color: '#757575',
+    fontSize: 13,
     marginBottom: 4,
   },
   stockValue: {
-    fontSize: 16,
     fontWeight: 'bold',
+    fontSize: 16,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 8,
-  },
-  detailLabel: {
-    fontWeight: '500',
-  },
-  detailValue: {},
-  repairId: {
-    color: '#2196F3',
-    textDecorationLine: 'underline',
+    padding: 4,
   },
   notesSection: {
-    marginTop: 8,
-    marginBottom: 12,
+    marginVertical: 8,
     padding: 8,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 4,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
   },
   notesLabel: {
-    fontWeight: '500',
+    color: '#757575',
     marginBottom: 4,
   },
   notesText: {
     fontStyle: 'italic',
   },
+  repairId: {
+    color: '#2196F3',
+    textDecorationLine: 'underline',
+  },
   userSection: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 8,
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
   },
   userLabel: {
-    fontSize: 12,
     color: '#757575',
+    fontSize: 12,
     marginRight: 4,
   },
   userValue: {
-    fontSize: 12,
     fontWeight: '500',
+    fontSize: 12,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
+    marginTop: 30,
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     marginTop: 16,
     marginBottom: 8,
+    color: '#2196F3',
   },
   emptySubtitle: {
     textAlign: 'center',
