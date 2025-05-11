@@ -193,7 +193,7 @@ export default function RepairCreateScreen({ navigation }) {
         messages: [],
         timeline: [{
           status: 'in_progress',
-          timestamp: serverTimestamp(),
+          timestamp: new Date(),
           description: 'Repair created by shop'
         }]
       });
@@ -386,8 +386,12 @@ export default function RepairCreateScreen({ navigation }) {
                 key={type}
                 selected={formData.deviceType === type}
                 onPress={() => setFormData({ ...formData, deviceType: type })}
-                style={styles.chip}
-                showSelectedCheck
+                style={[
+                  styles.chip,
+                  formData.deviceType === type ? styles.selectedChip : styles.unselectedChip
+                ]}
+                textStyle={formData.deviceType === type ? styles.selectedChipText : styles.unselectedChipText}
+                showSelectedCheck={false}
               >
                 {type}
               </Chip>
@@ -423,8 +427,12 @@ export default function RepairCreateScreen({ navigation }) {
                 key={service}
                 selected={formData.selectedServices.includes(service)}
                 onPress={() => handleServiceSelect(service)}
-                style={styles.chip}
-                showSelectedCheck
+                style={[
+                  styles.chip,
+                  formData.selectedServices.includes(service) ? styles.selectedChip : styles.unselectedChip
+                ]}
+                textStyle={formData.selectedServices.includes(service) ? styles.selectedChipText : styles.unselectedChipText}
+                showSelectedCheck={false}
               >
                 {service}
               </Chip>
@@ -576,6 +584,18 @@ const styles = StyleSheet.create({
   },
   chip: {
     margin: 4,
+  },
+  selectedChip: {
+    backgroundColor: '#000000',
+  },
+  unselectedChip: {
+    backgroundColor: '#ffffff',
+  },
+  selectedChipText: {
+    color: '#ffffff',
+  },
+  unselectedChipText: {
+    color: '#000000',
   },
   selectButton: {
     marginVertical: 8,
