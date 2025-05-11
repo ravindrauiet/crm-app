@@ -4,7 +4,7 @@ import { Text, Surface, Button, Chip, Divider, useTheme, IconButton, FAB, Portal
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { collection, query, where, onSnapshot, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit, getDocs, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { format } from 'date-fns';
 import { checkAuth } from '../../store/slices/authSlice';
@@ -113,15 +113,99 @@ export default function ShopDashboardScreen({ navigation }) {
       if (shopDoc.exists()) {
         console.log('Shop document found');
         const shopData = shopDoc.data();
-        setStats({
-          totalRepairs: shopData.totalRepairs || 0,
-          pendingRepairs: shopData.pendingRepairs || 0,
-          inProgressRepairs: shopData.inProgressRepairs || 0,
-          completedRepairs: shopData.completedRepairs || 0,
-          totalRevenue: shopData.totalRevenue || 0,
-          averageRating: shopData.averageRating || 0,
-          totalCustomers: shopData.totalCustomers || 0
+        
+        // Fetch transactions for revenue calculation
+        const transactionsRef = collection(db, 'transactions');
+        const transactionsQuery = query(
+          transactionsRef,
+          where('shopId', '==', userId),
+          where('type', '==', 'sale')
+        );
+        
+        const transactionsSnapshot = await getDocs(transactionsQuery);
+        let totalRevenue = 0;
+        
+        transactionsSnapshot.forEach(doc => {
+          const transaction = doc.data();
+          if (transaction.total) {
+            totalRevenue += transaction.total;
+          }
         });
+        
+        // Fetch customers count
+        const customersRef = collection(db, 'customers');
+        const customersQuery = query(
+          customersRef,
+          where('shopId', '==', userId)
+        );
+        
+        const customersSnapshot = await getDocs(customersQuery);
+        const totalCustomers = customersSnapshot.size;
+        
+        // Fetch repair stats
+        const repairsRef = collection(db, 'repairs');
+        const repairsQuery = query(
+          repairsRef,
+          where('shopId', '==', userId)
+        );
+        
+        const repairsSnapshot = await getDocs(repairsQuery);
+        let totalRepairs = repairsSnapshot.size;
+        let pendingRepairs = 0;
+        let inProgressRepairs = 0;
+        let completedRepairs = 0;
+        let totalRating = 0;
+        let ratingCount = 0;
+        
+        repairsSnapshot.forEach(doc => {
+          const repair = doc.data();
+          if (repair.status === 'pending') {
+            pendingRepairs++;
+          } else if (repair.status === 'in_progress') {
+            inProgressRepairs++;
+          } else if (repair.status === 'completed') {
+            completedRepairs++;
+          }
+          
+          if (repair.rating && repair.rating > 0) {
+            totalRating += repair.rating;
+            ratingCount++;
+          }
+        });
+        
+        const averageRating = ratingCount > 0 ? totalRating / ratingCount : 0;
+        
+        setStats({
+          totalRepairs,
+          pendingRepairs,
+          inProgressRepairs,
+          completedRepairs,
+          totalRevenue,
+          averageRating,
+          totalCustomers
+        });
+        
+        // Update the shop document with the latest stats if it's outdated
+        if (shopData.totalRepairs !== totalRepairs || 
+            shopData.totalRevenue !== totalRevenue || 
+            shopData.totalCustomers !== totalCustomers) {
+          
+          try {
+            await updateDoc(shopRef, {
+              totalRepairs,
+              pendingRepairs,
+              inProgressRepairs,
+              completedRepairs,
+              totalRevenue,
+              averageRating,
+              totalCustomers,
+              lastUpdated: serverTimestamp()
+            });
+          } catch (updateError) {
+            console.error('Error updating shop stats:', updateError);
+            // Continue even if update fails
+          }
+        }
       } else {
         console.log('No shop document found for user ID:', userId);
         // Initialize with default values if no shop data exists
@@ -132,7 +216,9 @@ export default function ShopDashboardScreen({ navigation }) {
           completedRepairs: 0,
           totalRevenue: 0,
           averageRating: 0,
-          totalCustomers: 0
+          totalCustomers: 0,
+          inventoryItems: 0,
+          lowStockItems: 0
         });
       }
 

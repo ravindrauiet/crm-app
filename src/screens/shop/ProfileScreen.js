@@ -4,7 +4,7 @@ import { Text, Surface, Button, useTheme, IconButton, Divider, List } from 'reac
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { logout } from '../../store/slices/authSlice';
 
@@ -42,35 +42,7 @@ export default function ProfileScreen({ navigation }) {
         return;
       }
       
-      // Check if shopDetails is directly available in the user object
-      if (user.shopDetails) {
-        console.log('Using shop details from user object');
-        const shopDetails = user.shopDetails;
-        
-        // Set shop data from the shopDetails in user object
-        setShopData({
-          name: shopDetails.name || 'Your Shop',
-          description: shopDetails.description || 'Add a description to your shop',
-          phone: shopDetails.phone || '',
-          email: shopDetails.email || user.email || '',
-          address: shopDetails.address || '',
-          website: shopDetails.website || '',
-          logo: shopDetails.logo || null
-        });
-        
-        // Calculate stats
-        setStats({
-          totalRepairs: shopDetails.totalRepairs || 0,
-          completedRepairs: shopDetails.completedRepairs || 0,
-          totalRevenue: shopDetails.totalRevenue || 0,
-          averageRating: shopDetails.rating || 0
-        });
-        
-        setLoading(false);
-        return;
-      }
-      
-      // Fallback to Firestore query if shopDetails is not in user object
+      // Get user ID
       const userId = user.uid || user.id;
       
       if (!userId) {
@@ -78,55 +50,101 @@ export default function ProfileScreen({ navigation }) {
         setLoading(false);
         return;
       }
+
+      // Set default shop data
+      const defaultShopData = {
+        name: user.shopName || 'Your Shop',
+        description: 'Add a description to your shop',
+        phone: '',
+        email: user.email || '',
+        address: '',
+        website: '',
+        logo: null
+      };
+      
+      // Fetch shop document from Firestore
+      const shopRef = doc(db, 'shops', userId);
+      const shopDoc = await getDoc(shopRef);
+      
+      if (shopDoc.exists()) {
+        const shopDocData = shopDoc.data();
+        setShopData({
+          name: shopDocData.name || defaultShopData.name,
+          description: shopDocData.description || defaultShopData.description,
+          phone: shopDocData.phone || defaultShopData.phone,
+          email: shopDocData.email || defaultShopData.email,
+          address: shopDocData.address || defaultShopData.address,
+          website: shopDocData.website || defaultShopData.website,
+          logo: shopDocData.logo || defaultShopData.logo
+        });
+      } else {
+        console.log('No shop document found for user:', userId);
+        setShopData(defaultShopData);
+      }
+      
+      // Fetch transaction data for revenue
+      let totalRevenue = 0;
+      try {
+        const transactionsRef = collection(db, 'transactions');
+        const transactionsQuery = query(
+          transactionsRef,
+          where('shopId', '==', userId),
+          where('type', '==', 'sale')
+        );
+        
+        const transactionsSnapshot = await getDocs(transactionsQuery);
+        transactionsSnapshot.forEach(doc => {
+          const transaction = doc.data();
+          if (transaction.total) {
+            totalRevenue += transaction.total;
+          }
+        });
+      } catch (err) {
+        console.error('Error fetching transactions:', err);
+      }
+      
+      // Fetch repair statistics
+      let totalRepairs = 0;
+      let completedRepairs = 0;
+      let totalRating = 0;
+      let ratingCount = 0;
       
       try {
-        const shopRef = doc(db, 'shops', userId);
-        const shopDoc = await getDoc(shopRef);
+        const repairsRef = collection(db, 'repairs');
+        const repairsQuery = query(
+          repairsRef,
+          where('shopId', '==', userId)
+        );
         
-        if (shopDoc.exists()) {
-          const shopDocData = shopDoc.data();
-          setShopData({
-            name: shopDocData.name || 'Your Shop',
-            description: shopDocData.description || 'Add a description to your shop',
-            phone: shopDocData.phone || '',
-            email: shopDocData.email || (user.email || ''),
-            address: shopDocData.address || '',
-            website: shopDocData.website || '',
-            logo: shopDocData.logo || null
-          });
+        const repairsSnapshot = await getDocs(repairsQuery);
+        totalRepairs = repairsSnapshot.size;
+        
+        repairsSnapshot.forEach(doc => {
+          const repair = doc.data();
           
-          setStats({
-            totalRepairs: shopDocData.totalRepairs || 0,
-            completedRepairs: shopDocData.completedRepairs || 0,
-            totalRevenue: shopDocData.totalRevenue || 0,
-            averageRating: shopDocData.averageRating || 0
-          });
-        } else {
-          console.log('No shop document found for user:', userId);
-          // Set default empty shop data
-          setShopData({
-            name: 'Your Shop',
-            description: 'Add a description to your shop',
-            phone: '',
-            email: user.email || '',
-            address: '',
-            website: '',
-            logo: null
-          });
-        }
-      } catch (docError) {
-        console.error('Error fetching shop document:', docError);
-        // Set default data even on error
-        setShopData({
-          name: 'Your Shop',
-          description: 'Add a description to your shop',
-          phone: '',
-          email: user.email || '',
-          address: '',
-          website: '',
-          logo: null
+          if (repair.status === 'completed') {
+            completedRepairs++;
+          }
+          
+          if (repair.rating && repair.rating > 0) {
+            totalRating += repair.rating;
+            ratingCount++;
+          }
         });
+      } catch (err) {
+        console.error('Error fetching repairs:', err);
       }
+      
+      // Calculate average rating
+      const averageRating = ratingCount > 0 ? totalRating / ratingCount : 0;
+      
+      // Update stats state
+      setStats({
+        totalRepairs,
+        completedRepairs,
+        totalRevenue,
+        averageRating
+      });
     } catch (error) {
       console.error('Error fetching shop profile:', error);
       Alert.alert('Error', 'Failed to load shop profile');
@@ -140,6 +158,13 @@ export default function ProfileScreen({ navigation }) {
         address: '',
         website: '',
         logo: null
+      });
+      
+      setStats({
+        totalRepairs: 0,
+        completedRepairs: 0,
+        totalRevenue: 0,
+        averageRating: 0
       });
     } finally {
       setLoading(false);
