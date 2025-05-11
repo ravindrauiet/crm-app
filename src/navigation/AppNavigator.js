@@ -22,6 +22,7 @@ import ShopDashboardScreen from '../screens/shop/ShopDashboardScreen';
 import RepairTicketsScreen from '../screens/shop/RepairTicketsScreen';
 import RepairCreateScreen from '../screens/shop/RepairCreateScreen';
 import CustomerListScreen from '../screens/shop/CustomerListScreen';
+import CustomerDetailsScreen from '../screens/shop/CustomerDetailsScreen';
 import AnalyticsScreen from '../screens/shop/AnalyticsScreen';
 import ShopProfileScreen from '../screens/shop/ProfileScreen';
 import EditShopProfileScreen from '../screens/shop/EditShopProfileScreen';
@@ -34,6 +35,7 @@ import InventoryAddScreen from '../screens/shop/InventoryAddScreen';
 import InventoryAdjustScreen from '../screens/shop/InventoryAdjustScreen';
 import InventoryAuditLogScreen from '../screens/shop/InventoryAuditLogScreen';
 import InventoryEditScreen from '../screens/shop/InventoryEditScreen';
+import InventorySaleScreen from '../screens/shop/InventorySaleScreen';
 
 // Shared Screens
 import RepairDetailsScreen from '../screens/shared/RepairDetailsScreen';
@@ -145,6 +147,11 @@ const AppNavigator = () => {
               options={{ title: 'Customers' }}
             />
             <Stack.Screen 
+              name="CustomerDetails" 
+              component={CustomerDetailsScreen}
+              options={{ title: 'Customer Details' }}
+            />
+            <Stack.Screen 
               name="Analytics" 
               component={AnalyticsScreen}
               options={{ title: 'Analytics' }}
@@ -198,6 +205,11 @@ const AppNavigator = () => {
               name="InventoryEdit" 
               component={InventoryEditScreen}
               options={{ title: 'Edit Inventory Item' }}
+            />
+            <Stack.Screen 
+              name="InventorySale" 
+              component={InventorySaleScreen}
+              options={{ title: 'Sell Inventory Item' }}
             />
             <Stack.Screen 
               name="FirebaseDebug" 

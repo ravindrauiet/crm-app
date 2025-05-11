@@ -234,6 +234,15 @@ export default function InventoryScreen({ navigation }) {
         >
           Adjust Stock
         </Button>
+        <Button
+          mode="contained"
+          icon="cart"
+          onPress={() => handleSellItem(item)}
+          style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
+          disabled={item.stockLevel <= 0}
+        >
+          Sell
+        </Button>
       </View>
     </Surface>
   );
@@ -259,6 +268,15 @@ export default function InventoryScreen({ navigation }) {
       )}
     </View>
   );
+  
+  const handleSellItem = (item) => {
+    if (item.stockLevel <= 0) {
+      Alert.alert('Out of Stock', 'This item is out of stock. Please restock before selling.');
+      return;
+    }
+    
+    navigation.navigate('InventorySale', { item });
+  };
   
   if (status === 'loading' && !refreshing) {
     return (
