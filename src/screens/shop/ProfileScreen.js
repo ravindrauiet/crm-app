@@ -36,40 +36,111 @@ export default function ProfileScreen({ navigation }) {
       console.log('User data in shop profile:', user);
       
       // Handle potential missing user ID
-      if (!user || (!user.id && !user.uid)) {
-        console.error('User ID is missing in shop profile');
+      if (!user) {
+        console.error('User is missing in shop profile');
+        setLoading(false);
         return;
       }
       
-      const userId = user.uid || user.id;
-      const shopRef = doc(db, 'shops', userId);
-      const shopDoc = await getDoc(shopRef);
-      
-      if (shopDoc.exists()) {
-        setShopData(shopDoc.data());
-        // Calculate stats from shop data
-        const shopStats = shopDoc.data();
-        setStats({
-          totalRepairs: shopStats.totalRepairs || 0,
-          completedRepairs: shopStats.completedRepairs || 0,
-          totalRevenue: shopStats.totalRevenue || 0,
-          averageRating: shopStats.averageRating || 0
+      // Check if shopDetails is directly available in the user object
+      if (user.shopDetails) {
+        console.log('Using shop details from user object');
+        const shopDetails = user.shopDetails;
+        
+        // Set shop data from the shopDetails in user object
+        setShopData({
+          name: shopDetails.name || 'Your Shop',
+          description: shopDetails.description || 'Add a description to your shop',
+          phone: shopDetails.phone || '',
+          email: shopDetails.email || user.email || '',
+          address: shopDetails.address || '',
+          website: shopDetails.website || '',
+          logo: shopDetails.logo || null
         });
-      } else {
-        console.log('No shop document found for user:', userId);
-        // Set default empty shop data
+        
+        // Calculate stats
+        setStats({
+          totalRepairs: shopDetails.totalRepairs || 0,
+          completedRepairs: shopDetails.completedRepairs || 0,
+          totalRevenue: shopDetails.totalRevenue || 0,
+          averageRating: shopDetails.rating || 0
+        });
+        
+        setLoading(false);
+        return;
+      }
+      
+      // Fallback to Firestore query if shopDetails is not in user object
+      const userId = user.uid || user.id;
+      
+      if (!userId) {
+        console.error('User ID is missing in shop profile');
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        const shopRef = doc(db, 'shops', userId);
+        const shopDoc = await getDoc(shopRef);
+        
+        if (shopDoc.exists()) {
+          const shopDocData = shopDoc.data();
+          setShopData({
+            name: shopDocData.name || 'Your Shop',
+            description: shopDocData.description || 'Add a description to your shop',
+            phone: shopDocData.phone || '',
+            email: shopDocData.email || (user.email || ''),
+            address: shopDocData.address || '',
+            website: shopDocData.website || '',
+            logo: shopDocData.logo || null
+          });
+          
+          setStats({
+            totalRepairs: shopDocData.totalRepairs || 0,
+            completedRepairs: shopDocData.completedRepairs || 0,
+            totalRevenue: shopDocData.totalRevenue || 0,
+            averageRating: shopDocData.averageRating || 0
+          });
+        } else {
+          console.log('No shop document found for user:', userId);
+          // Set default empty shop data
+          setShopData({
+            name: 'Your Shop',
+            description: 'Add a description to your shop',
+            phone: '',
+            email: user.email || '',
+            address: '',
+            website: '',
+            logo: null
+          });
+        }
+      } catch (docError) {
+        console.error('Error fetching shop document:', docError);
+        // Set default data even on error
         setShopData({
           name: 'Your Shop',
           description: 'Add a description to your shop',
           phone: '',
           email: user.email || '',
           address: '',
-          website: ''
+          website: '',
+          logo: null
         });
       }
     } catch (error) {
       console.error('Error fetching shop profile:', error);
       Alert.alert('Error', 'Failed to load shop profile');
+      
+      // Set default data even on error
+      setShopData({
+        name: 'Your Shop',
+        description: 'Add a description to your shop',
+        phone: '',
+        email: user ? (user.email || '') : '',
+        address: '',
+        website: '',
+        logo: null
+      });
     } finally {
       setLoading(false);
     }
@@ -231,13 +302,13 @@ export default function ProfileScreen({ navigation }) {
               title="Settings"
               left={props => <List.Icon {...props} icon="cog" color="#555" />}
               right={props => <List.Icon {...props} icon="chevron-right" color="#2196F3" />}
-              onPress={() => navigation.navigate('Settings')}
+              onPress={() => Alert.alert('Coming Soon', 'Settings page is under development')}
             />
             <List.Item
               title="Help & Support"
               left={props => <List.Icon {...props} icon="help-circle" color="#555" />}
               right={props => <List.Icon {...props} icon="chevron-right" color="#2196F3" />}
-              onPress={() => navigation.navigate('Support')}
+              onPress={() => Alert.alert('Support', 'Need help? Contact us at support@crmapp.com')}
             />
             <List.Item
               title="Sign Out"

@@ -43,7 +43,53 @@ export default function EditShopProfileScreen({ navigation }) {
   const fetchShopProfile = async () => {
     try {
       setLoading(true);
-      const shopRef = doc(db, 'shops', user.id);
+      
+      // Check if user exists
+      if (!user) {
+        Alert.alert('Error', 'User data not found');
+        setLoading(false);
+        return;
+      }
+      
+      // First check if shop details are available directly in the user object
+      if (user.shopDetails) {
+        console.log('Using shop details from user object for edit profile');
+        const shopDetails = user.shopDetails;
+        
+        // Set shop data from the shopDetails
+        setShopData({
+          name: shopDetails.name || '',
+          description: shopDetails.description || '',
+          address: shopDetails.address || '',
+          phone: shopDetails.phone || '',
+          email: shopDetails.email || user.email || '',
+          website: shopDetails.website || '',
+          services: shopDetails.services || [],
+          logo: shopDetails.logo || null,
+          workingHours: shopDetails.workingHours || {
+            monday: { open: '09:00', close: '18:00' },
+            tuesday: { open: '09:00', close: '18:00' },
+            wednesday: { open: '09:00', close: '18:00' },
+            thursday: { open: '09:00', close: '18:00' },
+            friday: { open: '09:00', close: '18:00' },
+            saturday: { open: '10:00', close: '16:00' },
+            sunday: { open: '', close: '' }
+          }
+        });
+        
+        setLoading(false);
+        return;
+      }
+      
+      // Fallback to Firestore if shopDetails not available in user object
+      const userId = user.uid || user.id;
+      if (!userId) {
+        Alert.alert('Error', 'User ID not found');
+        setLoading(false);
+        return;
+      }
+      
+      const shopRef = doc(db, 'shops', userId);
       const shopDoc = await getDoc(shopRef);
       
       if (shopDoc.exists()) {
@@ -91,24 +137,63 @@ export default function EditShopProfileScreen({ navigation }) {
 
     try {
       setSaving(true);
-      const shopRef = doc(db, 'shops', user.id);
+      
+      // Get user ID with fallback
+      const userId = user?.uid || user?.id;
+      if (!userId) {
+        Alert.alert('Error', 'User ID not found');
+        setSaving(false);
+        return;
+      }
       
       // Upload logo if changed
       let logoUrl = shopData.logo;
-      if (shopData.logo && shopData.logo.startsWith('data:')) {
-        const storage = getStorage();
-        const logoRef = ref(storage, `shops/${user.id}/logo`);
-        const response = await fetch(shopData.logo);
-        const blob = await response.blob();
-        await uploadBytes(logoRef, blob);
-        logoUrl = await getDownloadURL(logoRef);
+      if (shopData.logo && typeof shopData.logo === 'string' && shopData.logo.startsWith('data:')) {
+        try {
+          const storage = getStorage();
+          const logoRef = ref(storage, `shops/${userId}/logo`);
+          const response = await fetch(shopData.logo);
+          const blob = await response.blob();
+          await uploadBytes(logoRef, blob);
+          logoUrl = await getDownloadURL(logoRef);
+        } catch (uploadError) {
+          console.error('Error uploading logo:', uploadError);
+          // Continue with save but without updating the logo
+        }
       }
 
-      await updateDoc(shopRef, {
+      const dataToUpdate = {
         ...shopData,
         logo: logoUrl,
         updatedAt: new Date()
+      };
+
+      // Ensure none of the fields are undefined which could cause indexOf errors
+      Object.keys(dataToUpdate).forEach(key => {
+        if (dataToUpdate[key] === undefined) {
+          dataToUpdate[key] = null;
+        }
       });
+
+      // Check if we should update shopDetails in user data or standalone shop document
+      if (user.shopDetails) {
+        console.log('Updating shop details in user.shopDetails');
+        // For updating shopDetails within user document
+        const userRef = doc(db, 'users', userId);
+        
+        await updateDoc(userRef, {
+          'shopDetails': {
+            ...user.shopDetails,
+            ...dataToUpdate,
+            updatedAt: new Date()
+          }
+        });
+      } else {
+        console.log('Updating standalone shop document');
+        // For updating standalone shop document
+        const shopRef = doc(db, 'shops', userId);
+        await updateDoc(shopRef, dataToUpdate);
+      }
 
       Alert.alert('Success', 'Shop profile updated successfully');
       navigation.goBack();

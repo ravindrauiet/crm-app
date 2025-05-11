@@ -25,6 +25,8 @@ import CustomerListScreen from '../screens/shop/CustomerListScreen';
 import AnalyticsScreen from '../screens/shop/AnalyticsScreen';
 import ShopProfileScreen from '../screens/shop/ProfileScreen';
 import EditShopProfileScreen from '../screens/shop/EditShopProfileScreen';
+import WorkingHoursScreen from '../screens/shop/WorkingHoursScreen';
+import ServicesScreen from '../screens/shop/ServicesScreen';
 
 // Inventory Screens
 import InventoryScreen from '../screens/shop/InventoryScreen';
@@ -156,6 +158,16 @@ const AppNavigator = () => {
               name="EditShopProfile" 
               component={EditShopProfileScreen}
               options={{ title: 'Edit Shop Profile' }}
+            />
+            <Stack.Screen 
+              name="WorkingHours" 
+              component={WorkingHoursScreen}
+              options={{ title: 'Working Hours' }}
+            />
+            <Stack.Screen 
+              name="Services" 
+              component={ServicesScreen}
+              options={{ title: 'Manage Services' }}
             />
             <Stack.Screen 
               name="RepairDetails" 
