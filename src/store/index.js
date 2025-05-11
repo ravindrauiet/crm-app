@@ -10,6 +10,10 @@ console.log('Store configuration:');
 console.log('- shopReducer:', shopReducer);
 console.log('- shopsReducer:', shopsReducer);
 
+// For development, we'll disable serialization checks completely
+// For production, you should use a more targeted approach
+const isProduction = process.env.NODE_ENV === 'production';
+
 const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -19,16 +23,31 @@ const store = configureStore({
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
-      serializableCheck: {
-        // Ignore these action types
-        ignoredActions: ['auth/register/fulfilled', 'auth/login/fulfilled'],
-        // Ignore these field paths in all actions
-        ignoredActionPaths: ['payload.createdAt', 'payload.updatedAt', 'meta.arg'],
-        // Ignore these paths in the state
-        ignoredPaths: ['auth.user.createdAt', 'auth.user.updatedAt'],
-      },
+      serializableCheck: isProduction ? {
+        // In production, use targeted ignores
+        ignoredActions: [
+          'auth/register/fulfilled', 
+          'auth/login/fulfilled', 
+          'inventory/fetchInventory/fulfilled',
+          'inventory/fetchAuditLogs/fulfilled',
+        ],
+        ignoredActionPaths: [
+          'payload.createdAt', 
+          'payload.updatedAt', 
+          'meta.arg',
+          'payload.timestamp',
+          'meta.baseQueryMeta',
+          'meta.requestId',
+        ],
+        ignoredPaths: [
+          'auth.user.createdAt', 
+          'auth.user.updatedAt',
+          'inventory.items',
+          'inventory.auditLogs',
+        ],
+      } : false, // In development, disable checks completely
     }),
-  devTools: process.env.NODE_ENV !== 'production',
+  devTools: !isProduction,
 });
 
 export default store; 

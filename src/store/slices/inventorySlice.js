@@ -1,4 +1,4 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import { db } from '../../config/firebase';
 import { 
   collection, 
@@ -23,17 +23,56 @@ const initialState = {
   status: 'idle',
 };
 
+// Helper function to convert all Firestore timestamps to Date strings
+const convertTimestamps = (obj) => {
+  if (!obj) return obj;
+  
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map(item => convertTimestamps(item));
+  }
+  
+  // Handle objects
+  if (typeof obj === 'object') {
+    // Check if it's a Firestore Timestamp
+    if (obj && typeof obj.toDate === 'function') {
+      return obj.toDate().toISOString();
+    }
+    
+    // Process regular objects
+    const result = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        result[key] = convertTimestamps(obj[key]);
+      }
+    }
+    return result;
+  }
+  
+  // Return primitives as is
+  return obj;
+};
+
 // Async thunks
 export const fetchInventory = createAsyncThunk(
   'inventory/fetchInventory',
   async (_, { rejectWithValue }) => {
     try {
+      console.log('Fetching inventory items...');
       const inventoryRef = collection(db, 'inventory');
       const querySnapshot = await getDocs(query(inventoryRef, orderBy('name')));
-      const items = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      console.log(`Found ${querySnapshot.docs.length} inventory items`);
+      
+      const items = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        // Convert all timestamps in the object
+        return {
+          id: doc.id,
+          ...convertTimestamps(data)
+        };
+      });
+      
+      console.log('Processed inventory items:', items.length);
       return items;
     } catch (error) {
       console.error('Error fetching inventory:', error);
@@ -48,11 +87,13 @@ export const fetchAuditLogs = createAsyncThunk(
     try {
       const logsRef = collection(db, 'inventoryLogs');
       const querySnapshot = await getDocs(query(logsRef, orderBy('timestamp', 'desc')));
-      const logs = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate ? doc.data().timestamp.toDate() : new Date()
-      }));
+      const logs = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...convertTimestamps(data)
+        };
+      });
       return logs;
     } catch (error) {
       console.error('Error fetching audit logs:', error);
@@ -392,12 +433,33 @@ const inventorySlice = createSlice({
 export const { resetStatus } = inventorySlice.actions;
 
 // Custom hooks for common selectors
-export const useInventory = () => (state) => state.inventory?.items || [];
-export const useAuditLogs = () => (state) => state.inventory?.auditLogs || [];
-export const useInventoryStatus = () => (state) => ({
+const selectItems = state => state.inventory?.items || [];
+const selectStatus = state => ({
   status: state.inventory?.status || 'idle',
   error: state.inventory?.error || null
 });
-export const useInventoryStore = () => (state) => state.inventory || initialState;
+const selectInventoryStore = state => state.inventory || initialState;
+const selectAuditLogs = state => state.inventory?.auditLogs || [];
+
+// Memoized selectors
+export const useInventory = () => createSelector(
+  [selectItems],
+  (items) => items
+);
+
+export const useInventoryStatus = () => createSelector(
+  [selectStatus],
+  (status) => status
+);
+
+export const useInventoryStore = () => createSelector(
+  [selectInventoryStore],
+  (store) => store
+);
+
+export const useAuditLogs = () => createSelector(
+  [selectAuditLogs],
+  (logs) => logs
+);
 
 export default inventorySlice.reducer; 

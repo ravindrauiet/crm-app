@@ -19,12 +19,37 @@ export default function InventoryScreen({ navigation }) {
   const [menuVisible, setMenuVisible] = useState({});
   
   useEffect(() => {
-    loadInventory();
-  }, []);
+    // Try to load inventory as soon as possible
+    if (user) {
+      console.log('User detected, attempting to load inventory');
+      loadInventory();
+    }
+    
+    // Set up a listener to reload data when the screen comes into focus
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('Screen focused, refreshing inventory data');
+      loadInventory();
+    });
+    
+    // Clean up listener
+    return unsubscribe;
+  }, [navigation, user]);
   
   const loadInventory = () => {
-    if (user && user.id) {
-      dispatch(fetchInventory());
+    // Check if user exists and has any id-like property
+    // This handles different auth providers that might use different id properties
+    if (user && (user.id || user.uid || user._id)) {
+      const userId = user.id || user.uid || user._id;
+      console.log('Loading inventory for user:', userId);
+      dispatch(fetchInventory())
+        .then((result) => {
+          console.log('Inventory loaded successfully:', result.payload?.length || 0, 'items');
+        })
+        .catch((error) => {
+          console.error('Error loading inventory:', error);
+        });
+    } else {
+      console.log('Cannot load inventory: Valid user ID not available', user);
     }
   };
   
