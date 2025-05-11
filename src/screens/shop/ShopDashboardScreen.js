@@ -291,11 +291,15 @@ export default function ShopDashboardScreen({ navigation }) {
     return (
       <Surface style={styles.welcomeCard}>
         <View style={styles.welcomeContent}>
-          <View>
-            <Text style={styles.welcomeTitle}>Welcome back!</Text>
+          <Avatar.Text 
+            size={60} 
+            label={shopName.substring(0, 2).toUpperCase()} 
+            style={styles.avatar}
+          />
+          <View style={styles.welcomeText}>
+            <Title style={styles.welcomeTitle}>Welcome back!</Title>
             <Text style={styles.welcomeShopName}>{shopName}</Text>
           </View>
-          <MaterialCommunityIcons name="store" size={48} color={theme.colors.primary} />
         </View>
         
         <View style={styles.quickActions}>
@@ -331,62 +335,63 @@ export default function ShopDashboardScreen({ navigation }) {
   };
 
   const renderStatsCard = () => (
-    <Surface style={styles.statsCard}>
-      <View style={styles.statsGrid}>
-        <View style={styles.statItem}>
-          <MaterialCommunityIcons name="tools" size={24} color={theme.colors.primary} />
-          <Text variant="titleMedium">{stats.totalRepairs}</Text>
-          <Text variant="bodySmall">Total Repairs</Text>
-        </View>
-        <View style={styles.statItem}>
-          <MaterialCommunityIcons name="clock-outline" size={24} color={theme.colors.primary} />
-          <Text variant="titleMedium">{stats.pendingRepairs}</Text>
-          <Text variant="bodySmall">Pending</Text>
-        </View>
-        <View style={styles.statItem}>
-          <MaterialCommunityIcons name="progress-clock" size={24} color={theme.colors.primary} />
-          <Text variant="titleMedium">{stats.inProgressRepairs}</Text>
-          <Text variant="bodySmall">In Progress</Text>
-        </View>
-        <View style={styles.statItem}>
-          <MaterialCommunityIcons name="check-circle" size={24} color={theme.colors.primary} />
-          <Text variant="titleMedium">{stats.completedRepairs}</Text>
-          <Text variant="bodySmall">Completed</Text>
-        </View>
-      </View>
-    </Surface>
+    <View style={styles.statsContainer}>
+      <Surface style={styles.statCard}>
+        <MaterialCommunityIcons name="wrench" size={28} color={theme.colors.primary} />
+        <Text style={styles.statNumber}>{stats.totalRepairs}</Text>
+        <Text style={styles.statLabel}>Total</Text>
+      </Surface>
+      
+      <Surface style={styles.statCard}>
+        <MaterialCommunityIcons name="progress-clock" size={28} color="#FF9800" />
+        <Text style={styles.statNumber}>{stats.inProgressRepairs}</Text>
+        <Text style={styles.statLabel}>In Progress</Text>
+      </Surface>
+      
+      <Surface style={styles.statCard}>
+        <MaterialCommunityIcons name="check-circle" size={28} color="#4CAF50" />
+        <Text style={styles.statNumber}>{stats.completedRepairs}</Text>
+        <Text style={styles.statLabel}>Completed</Text>
+      </Surface>
+    </View>
   );
 
   const renderRevenueCard = () => (
-    <Surface style={styles.card}>
-      <View style={styles.cardContent}>
-        <View style={styles.cardHeader}>
-          <Text variant="titleMedium">Revenue Overview</Text>
-          <IconButton
-            icon="chevron-right"
-            size={24}
-            onPress={() => navigation.navigate('Analytics')}
-          />
+    <Surface style={styles.insightsCard}>
+      <View style={styles.insightsHeader}>
+        <Title style={styles.insightsTitle}>Shop Performance</Title>
+        <Button 
+          mode="text" 
+          onPress={() => navigation.navigate('Analytics')}
+        >
+          View Details
+        </Button>
+      </View>
+      
+      <Divider style={styles.divider} />
+      
+      <View style={styles.insightsContent}>
+        <View style={styles.insightItem}>
+          <MaterialCommunityIcons name="currency-usd" size={24} color="#4CAF50" />
+          <View style={styles.insightText}>
+            <Text style={styles.insightValue}>${stats.totalRevenue.toFixed(2)}</Text>
+            <Text style={styles.insightLabel}>Total Revenue</Text>
+          </View>
         </View>
-        <Divider style={styles.divider} />
-        <View style={styles.revenueContent}>
-          <View style={styles.revenueItem}>
-            <Text variant="titleLarge" style={styles.revenueAmount}>
-              ${stats.totalRevenue.toFixed(2)}
-            </Text>
-            <Text variant="bodySmall">Total Revenue</Text>
+        
+        <View style={styles.insightItem}>
+          <MaterialCommunityIcons name="star" size={24} color="#FFC107" />
+          <View style={styles.insightText}>
+            <Text style={styles.insightValue}>{stats.averageRating.toFixed(1)}</Text>
+            <Text style={styles.insightLabel}>Average Rating</Text>
           </View>
-          <View style={styles.revenueItem}>
-            <Text variant="titleLarge" style={styles.revenueAmount}>
-              {stats.averageRating.toFixed(1)}
-            </Text>
-            <Text variant="bodySmall">Average Rating</Text>
-          </View>
-          <View style={styles.revenueItem}>
-            <Text variant="titleLarge" style={styles.revenueAmount}>
-              {stats.totalCustomers}
-            </Text>
-            <Text variant="bodySmall">Total Customers</Text>
+        </View>
+        
+        <View style={styles.insightItem}>
+          <MaterialCommunityIcons name="account-group" size={24} color="#2196F3" />
+          <View style={styles.insightText}>
+            <Text style={styles.insightValue}>{stats.totalCustomers}</Text>
+            <Text style={styles.insightLabel}>Customers</Text>
           </View>
         </View>
       </View>
@@ -394,49 +399,70 @@ export default function ShopDashboardScreen({ navigation }) {
   );
 
   const renderInventoryCard = () => (
-    <Surface style={styles.statsCard}>
-      <Text style={styles.cardTitle}>Inventory Status</Text>
-      <View style={styles.statsRow}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{stats.inventoryItems}</Text>
-          <Text style={styles.statLabel}>Total Items</Text>
+    <Surface style={styles.insightsCard}>
+      <View style={styles.insightsHeader}>
+        <Title style={styles.insightsTitle}>Inventory Status</Title>
+        <Button 
+          mode="text" 
+          onPress={() => navigation.navigate('Inventory')}
+        >
+          Manage
+        </Button>
+      </View>
+      
+      <Divider style={styles.divider} />
+      
+      <View style={styles.insightsContent}>
+        <View style={styles.insightItem}>
+          <MaterialCommunityIcons name="package-variant" size={24} color="#2196F3" />
+          <View style={styles.insightText}>
+            <Text style={styles.insightValue}>{stats.inventoryItems}</Text>
+            <Text style={styles.insightLabel}>Total Items</Text>
+          </View>
         </View>
-        <View style={styles.statItem}>
-          <Text style={[styles.statValue, stats.lowStockItems > 0 ? styles.alertText : {}]}>
-            {stats.lowStockItems}
-          </Text>
-          <Text style={styles.statLabel}>Low Stock</Text>
+        
+        <View style={styles.insightItem}>
+          <MaterialCommunityIcons name="alert-circle" size={24} color={stats.lowStockItems > 0 ? "#F44336" : "#757575"} />
+          <View style={styles.insightText}>
+            <Text style={[styles.insightValue, stats.lowStockItems > 0 ? styles.alertText : {}]}>
+              {stats.lowStockItems}
+            </Text>
+            <Text style={styles.insightLabel}>Low Stock</Text>
+          </View>
         </View>
       </View>
       
       <Button 
-        mode="outlined" 
-        icon="package-variant" 
-        onPress={() => navigation.navigate('Inventory')}
+        mode="contained" 
+        icon="package-variant-plus" 
+        onPress={() => navigation.navigate('InventoryAdd')}
         style={styles.cardButton}
       >
-        Manage Inventory
+        Add Inventory Item
       </Button>
     </Surface>
   );
 
   const renderRecentRepairs = () => (
-    <Surface style={styles.card}>
-      <View style={styles.cardContent}>
-        <View style={styles.cardHeader}>
-          <Text variant="titleMedium">Recent Repairs</Text>
-          <IconButton
-            icon="chevron-right"
-            size={24}
-            onPress={() => navigation.navigate('RepairTickets')}
-          />
-        </View>
-        <Divider style={styles.divider} />
-        {recentRepairs.length > 0 ? (
-          recentRepairs.map((repair) => (
-            <View key={repair.id} style={styles.repairItem}>
-              <View style={styles.repairHeader}>
-                <Text variant="titleSmall">{repair.deviceType || 'Unknown Device'}</Text>
+    <Surface style={styles.repairListCard}>
+      <View style={styles.insightsHeader}>
+        <Title style={styles.insightsTitle}>Recent Repairs</Title>
+        <Button 
+          mode="text" 
+          onPress={() => navigation.navigate('RepairTickets')}
+        >
+          View All
+        </Button>
+      </View>
+      
+      <Divider style={styles.divider} />
+      
+      {recentRepairs.length > 0 ? (
+        recentRepairs.map((repair) => (
+          <Surface key={repair.id} style={styles.repairCard}>
+            <View style={styles.repairHeader}>
+              <View style={styles.repairTitleSection}>
+                <Text style={styles.repairTitle}>{repair.deviceType || 'Unknown Device'}</Text>
                 <Chip
                   mode="outlined"
                   textStyle={{ color: getStatusColor(repair.status) }}
@@ -445,34 +471,45 @@ export default function ShopDashboardScreen({ navigation }) {
                   {(repair.status || 'pending').replace('_', ' ')}
                 </Chip>
               </View>
-              <Text variant="bodyMedium" style={styles.repairModel}>
-                {repair.deviceModel || 'No model specified'}
-              </Text>
-              <Text variant="bodySmall" style={styles.repairCustomer}>
-                Customer: {repair.customerName || 'Unknown Customer'}
-              </Text>
-              <View style={styles.repairFooter}>
-                <Text variant="bodySmall" style={styles.repairDate}>
-                  {formatRepairDate(repair.createdAt)}
-                </Text>
-                <Button
-                  mode="text"
-                  onPress={() => handleRepairPress(repair)}
-                  style={styles.viewButton}
-                >
-                  View Details
-                </Button>
-              </View>
             </View>
-          ))
-        ) : (
-          <View style={styles.emptyCard}>
-            <MaterialCommunityIcons name="tools" size={48} color={theme.colors.primary} />
-            <Text style={styles.emptyTitle}>No Repairs Yet</Text>
-            <Text style={styles.emptySubtitle}>Create a new repair to get started</Text>
-          </View>
-        )}
-      </View>
+            
+            <Text style={styles.repairModel}>
+              {repair.deviceModel || 'No model specified'}
+            </Text>
+            
+            <Text style={styles.repairCustomer}>
+              Customer: {repair.customerName || 'Unknown Customer'}
+            </Text>
+            
+            <View style={styles.repairFooter}>
+              <Text style={styles.repairDate}>
+                {formatRepairDate(repair.createdAt)}
+              </Text>
+              <Button
+                mode="contained"
+                onPress={() => handleRepairPress(repair)}
+                style={styles.viewButton}
+              >
+                View
+              </Button>
+            </View>
+          </Surface>
+        ))
+      ) : (
+        <View style={styles.emptyCard}>
+          <MaterialCommunityIcons name="tools" size={48} color={theme.colors.primary} />
+          <Text style={styles.emptyTitle}>No Repairs Yet</Text>
+          <Text style={styles.emptySubtitle}>Create a new repair to get started</Text>
+          <Button 
+            mode="contained"
+            icon="plus"
+            onPress={() => navigation.navigate('NewRepair')}
+            style={styles.emptyButton}
+          >
+            New Repair
+          </Button>
+        </View>
+      )}
     </Surface>
   );
 
@@ -542,10 +579,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
-  content: {
-    padding: 16,
-    paddingBottom: 32,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -593,88 +626,170 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
-  welcomeSubtitle: {
-    color: '#6c757d',
+  welcomeShopName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#555',
     marginTop: 4,
   },
-  statsCard: {
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 8,
-    elevation: 2,
-  },
-  statsGrid: {
+  quickActions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
+    marginTop: 20,
   },
-  statItem: {
-    alignItems: 'center',
+  actionButton: {
     flex: 1,
+    marginHorizontal: 4,
   },
-  card: {
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 16,
+    marginHorizontal: 6,
+    elevation: 2,
+    backgroundColor: '#ffffff',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2196F3',
+    marginVertical: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontWeight: '500',
+  },
+  insightsCard: {
     margin: 16,
     marginTop: 0,
-    marginBottom: 16,
+    padding: 16,
     borderRadius: 16,
     elevation: 2,
+    backgroundColor: '#ffffff',
   },
-  cardContent: {
-    padding: 16,
-  },
-  cardHeader: {
+  insightsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  insightsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   divider: {
     marginVertical: 12,
+    backgroundColor: '#e9ecef',
   },
-  revenueContent: {
+  insightsContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    marginBottom: 12,
   },
-  revenueItem: {
+  insightItem: {
     alignItems: 'center',
+    padding: 8,
   },
-  revenueAmount: {
+  insightText: {
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  insightValue: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#2196F3',
   },
-  repairItem: {
-    marginBottom: 16,
-    padding: 12,
-    backgroundColor: '#fff',
+  insightLabel: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginTop: 4,
+  },
+  alertText: {
+    color: '#F44336',
+  },
+  cardButton: {
+    marginTop: 16,
+  },
+  repairListCard: {
+    margin: 16,
+    marginTop: 0,
+    padding: 16,
+    borderRadius: 16,
+    elevation: 2,
+    backgroundColor: '#ffffff',
+  },
+  repairCard: {
+    marginTop: 16,
+    padding: 16,
     borderRadius: 12,
     elevation: 1,
+    backgroundColor: '#ffffff',
   },
   repairHeader: {
+    marginBottom: 8,
+  },
+  repairTitleSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+  },
+  repairTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  statusChip: {
+    height: 28,
   },
   repairModel: {
     color: '#666',
+    fontSize: 14,
     marginBottom: 4,
   },
   repairCustomer: {
     color: '#666',
+    fontSize: 14,
     marginBottom: 8,
   },
   repairFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 8,
   },
   repairDate: {
     color: '#666',
+    fontSize: 12,
   },
   viewButton: {
     marginLeft: 8,
+    height: 36,
   },
-  statusChip: {
-    height: 24,
+  emptyCard: {
+    padding: 32,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    color: '#2196F3',
+  },
+  emptySubtitle: {
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 24,
+    color: '#6c757d',
+  },
+  emptyButton: {
+    marginTop: 16,
   },
   fab: {
     position: 'absolute',
@@ -684,54 +799,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#2196F3',
     borderRadius: 28,
     elevation: 6,
-  },
-  emptyCard: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  emptySubtitle: {
-    color: '#6c757d',
-  },
-  welcomeShopName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 4,
-  },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-  },
-  actionButton: {
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statValue: {
-    fontWeight: 'bold',
-    color: '#2196F3',
-  },
-  statLabel: {
-    color: '#666',
-  },
-  cardButton: {
-    marginTop: 16,
-  },
-  alertText: {
-    color: '#FF5252',
   },
 }); 
