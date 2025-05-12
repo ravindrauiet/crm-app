@@ -448,7 +448,7 @@ export default function ShopDashboardScreen({ navigation }) {
         <Title style={styles.insightsTitle}>Shop Performance</Title>
         <Button 
           mode="text" 
-          onPress={() => navigation.navigate('Analytics')}
+          onPress={handleAnalyticsPress}
         >
           View Details
         </Button>
@@ -520,7 +520,7 @@ export default function ShopDashboardScreen({ navigation }) {
       
       <Button 
         mode="contained" 
-        icon="package-variant-plus" 
+        icon="package-variant-closed-plus" 
         onPress={() => navigation.navigate('InventoryAdd')}
         style={styles.cardButton}
       >
@@ -622,6 +622,33 @@ export default function ShopDashboardScreen({ navigation }) {
     } catch (error) {
       console.error('Error formatting date:', error);
       return 'Date error';
+    }
+  };
+
+  const handleAnalyticsPress = () => {
+    try {
+      // Make sure we have a valid user ID
+      const userId = user?.uid || user?.id;
+      
+      if (!userId) {
+        Alert.alert('Error', 'User ID not found. Please try logging in again.');
+        return;
+      }
+      
+      // Navigate to Analytics screen with required shopId parameter
+      navigation.navigate('Analytics', { 
+        shopId: userId,
+        // Pass additional data that might be needed by the Analytics screen
+        shopStats: {
+          totalRepairs: stats.totalRepairs,
+          completedRepairs: stats.completedRepairs,
+          totalRevenue: stats.totalRevenue,
+          averageRating: stats.averageRating
+        }
+      });
+    } catch (error) {
+      console.error('Error navigating to analytics:', error);
+      Alert.alert('Error', 'Could not open analytics. Please try again.');
     }
   };
 

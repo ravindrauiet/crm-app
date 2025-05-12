@@ -11,9 +11,10 @@ import { format, subDays, subMonths, startOfDay, endOfDay } from 'date-fns';
 
 const { width } = Dimensions.get('window');
 
-export default function AnalyticsScreen({ navigation }) {
+export default function AnalyticsScreen({ route, navigation }) {
   const theme = useTheme();
   const user = useSelector(state => state.auth.user);
+  const { shopId, shopStats } = route.params || {};
   
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -42,12 +43,43 @@ export default function AnalyticsScreen({ navigation }) {
   });
 
   useEffect(() => {
+    // Initialize with shop stats if available from route params
+    if (shopStats) {
+      setAnalytics(prevState => ({
+        ...prevState,
+        revenue: {
+          ...prevState.revenue,
+          total: shopStats.totalRevenue || 0
+        },
+        repairs: {
+          ...prevState.repairs,
+          total: shopStats.totalRepairs || 0
+        },
+        ratings: {
+          ...prevState.ratings,
+          average: shopStats.averageRating || 0
+        }
+      }));
+    }
+    
     fetchAnalytics();
-  }, [timeRange]);
+  }, [timeRange, shopId]);
 
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
+      
+      // Use the shopId from route params, or fall back to user.id
+      const effectiveShopId = shopId || user?.uid || user?.id;
+      
+      if (!effectiveShopId) {
+        console.error('Shop ID not available');
+        Alert.alert('Error', 'Shop ID not found. Please try again.');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('Fetching analytics for shop ID:', effectiveShopId);
       
       const startDate = timeRange === 'week' 
         ? startOfDay(subDays(new Date(), 7))
@@ -56,7 +88,7 @@ export default function AnalyticsScreen({ navigation }) {
       // Fetch repairs for the selected time range
       const repairsQuery = query(
         collection(db, 'repairs'),
-        where('shopId', '==', user.id),
+        where('shopId', '==', effectiveShopId),
         where('createdAt', '>=', startDate),
         orderBy('createdAt', 'asc')
       );
@@ -67,19 +99,44 @@ export default function AnalyticsScreen({ navigation }) {
         ...doc.data()
       }));
 
+      // Fetch transactions for revenue
+      const transactionsQuery = query(
+        collection(db, 'transactions'),
+        where('shopId', '==', effectiveShopId),
+        where('type', '==', 'sale')
+      );
+      
+      const transactionsSnapshot = await getDocs(transactionsQuery);
+      const transactions = transactionsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      // Fetch customers
+      const customersQuery = query(
+        collection(db, 'customers'),
+        where('shopId', '==', effectiveShopId)
+      );
+      
+      const customersSnapshot = await getDocs(customersQuery);
+      const customers = customersSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
       // Process analytics data
-      const processedData = processAnalyticsData(repairs, startDate);
+      const processedData = processAnalyticsData(repairs, transactions, customers, startDate);
       setAnalytics(processedData);
     } catch (error) {
       console.error('Error fetching analytics:', error);
-      Alert.alert('Error', 'Failed to load analytics data');
+      Alert.alert('Error', 'Failed to load analytics data: ' + error.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const processAnalyticsData = (repairs, startDate) => {
+  const processAnalyticsData = (repairs, transactions, customers, startDate) => {
     const revenueData = [];
     const revenueLabels = [];
     const statusCount = {};
@@ -98,20 +155,29 @@ export default function AnalyticsScreen({ navigation }) {
       revenueLabels.push(format(date, 'MMM d'));
     }
 
+    // Process transactions for revenue
+    transactions.forEach(transaction => {
+      if (transaction.createdAt && transaction.total) {
+        const createdDate = transaction.createdAt.toDate ? transaction.createdAt.toDate() : new Date(transaction.createdAt);
+        const dayIndex = days - 1 - Math.floor((new Date() - createdDate) / (1000 * 60 * 60 * 24));
+        
+        if (dayIndex >= 0 && dayIndex < days) {
+          revenueData[dayIndex] += transaction.total || 0;
+        }
+        
+        totalRevenue += transaction.total;
+      }
+    });
+
     // Process each repair
     repairs.forEach(repair => {
-      // Revenue data
-      const dayIndex = days - 1 - Math.floor((new Date() - repair.createdAt.toDate()) / (1000 * 60 * 60 * 24));
-      if (dayIndex >= 0 && dayIndex < days) {
-        revenueData[dayIndex] += repair.price || 0;
-      }
-      totalRevenue += repair.price || 0;
-
       // Status distribution
-      statusCount[repair.status] = (statusCount[repair.status] || 0) + 1;
+      const status = repair.status || 'unknown';
+      statusCount[status] = (statusCount[status] || 0) + 1;
 
       // Device type distribution
-      deviceCount[repair.deviceType] = (deviceCount[repair.deviceType] || 0) + 1;
+      const deviceType = repair.deviceType || 'unknown';
+      deviceCount[deviceType] = (deviceCount[deviceType] || 0) + 1;
 
       // Service type distribution
       if (repair.serviceType) {
@@ -140,9 +206,13 @@ export default function AnalyticsScreen({ navigation }) {
         byService: serviceCount
       },
       customers: {
-        total: new Set(repairs.map(r => r.customerId)).size,
-        new: repairs.filter(r => r.isNewCustomer).length,
-        returning: repairs.filter(r => !r.isNewCustomer).length
+        total: customers.length,
+        new: customers.filter(c => {
+          if (!c.createdAt) return false;
+          const createdDate = c.createdAt.toDate ? c.createdAt.toDate() : new Date(c.createdAt);
+          return (new Date() - createdDate) / (1000 * 60 * 60 * 24) <= 30;
+        }).length,
+        returning: 0 // This would require more complex logic with transaction history
       },
       ratings: {
         average: ratingCount > 0 ? totalRatings / ratingCount : 0,
@@ -161,14 +231,14 @@ export default function AnalyticsScreen({ navigation }) {
       <View style={styles.chartHeader}>
         <Text variant="titleMedium">Revenue Trend</Text>
         <Text variant="titleLarge" style={styles.revenueTotal}>
-          ${analytics.revenue.total.toFixed(2)}
+          ${Number(analytics.revenue.total || 0).toFixed(2)}
         </Text>
       </View>
       <LineChart
         data={{
           labels: analytics.revenue.labels,
           datasets: [{
-            data: analytics.revenue.data
+            data: analytics.revenue.data.map(val => Number(val) || 0)
           }]
         }}
         width={width - 32}
@@ -181,7 +251,8 @@ export default function AnalyticsScreen({ navigation }) {
           color: (opacity = 1) => `rgba(33, 150, 243, ${opacity})`,
           style: {
             borderRadius: 16
-          }
+          },
+          formatYLabel: (value) => Number(value).toFixed(0)
         }}
         bezier
         style={styles.chart}
@@ -195,22 +266,22 @@ export default function AnalyticsScreen({ navigation }) {
       <View style={styles.statsGrid}>
         <View style={styles.statItem}>
           <MaterialCommunityIcons name="tools" size={24} color={theme.colors.primary} />
-          <Text variant="titleLarge">{analytics.repairs.total}</Text>
+          <Text variant="titleLarge">{Number(analytics.repairs.total || 0)}</Text>
           <Text variant="bodySmall">Total Repairs</Text>
         </View>
         <View style={styles.statItem}>
           <MaterialCommunityIcons name="account-multiple" size={24} color={theme.colors.primary} />
-          <Text variant="titleLarge">{analytics.customers.total}</Text>
+          <Text variant="titleLarge">{Number(analytics.customers.total || 0)}</Text>
           <Text variant="bodySmall">Total Customers</Text>
         </View>
         <View style={styles.statItem}>
           <MaterialCommunityIcons name="star" size={24} color={theme.colors.primary} />
-          <Text variant="titleLarge">{analytics.ratings.average.toFixed(1)}</Text>
+          <Text variant="titleLarge">{Number(analytics.ratings.average || 0).toFixed(1)}</Text>
           <Text variant="bodySmall">Avg Rating</Text>
         </View>
         <View style={styles.statItem}>
           <MaterialCommunityIcons name="currency-usd" size={24} color={theme.colors.primary} />
-          <Text variant="titleLarge">${analytics.revenue.total.toFixed(0)}</Text>
+          <Text variant="titleLarge">${Number(analytics.revenue.total || 0).toFixed(0)}</Text>
           <Text variant="bodySmall">Total Revenue</Text>
         </View>
       </View>
@@ -218,13 +289,16 @@ export default function AnalyticsScreen({ navigation }) {
   );
 
   const renderDeviceDistribution = () => {
-    const deviceData = Object.entries(analytics.repairs.byDevice).map(([device, count]) => ({
-      name: device,
-      count,
-      color: getRandomColor(),
-      legendFontColor: '#7F7F7F',
-      legendFontSize: 12
-    }));
+    const deviceEntries = Object.entries(analytics.repairs.byDevice || {});
+    const deviceData = deviceEntries.length > 0 
+      ? deviceEntries.map(([device, count]) => ({
+          name: device || 'Unknown',
+          count: Number(count) || 0,
+          color: getRandomColor(),
+          legendFontColor: '#7F7F7F',
+          legendFontSize: 12
+        }))
+      : [{ name: 'No Data', count: 1, color: '#CCCCCC', legendFontColor: '#7F7F7F', legendFontSize: 12 }];
 
     return (
       <Surface style={styles.chartCard}>
@@ -235,6 +309,7 @@ export default function AnalyticsScreen({ navigation }) {
           height={220}
           chartConfig={{
             color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+            formatNumber: (number) => Number(number).toFixed(0)
           }}
           accessor="count"
           backgroundColor="transparent"
@@ -246,13 +321,16 @@ export default function AnalyticsScreen({ navigation }) {
   };
 
   const renderServiceDistribution = () => {
-    const serviceData = Object.entries(analytics.repairs.byService).map(([service, count]) => ({
-      name: service,
-      count,
-      color: getRandomColor(),
-      legendFontColor: '#7F7F7F',
-      legendFontSize: 12
-    }));
+    const serviceEntries = Object.entries(analytics.repairs.byService || {});
+    const serviceData = serviceEntries.length > 0 
+      ? serviceEntries.map(([service, count]) => ({
+          name: service || 'Unknown',
+          count: Number(count) || 0,
+          color: getRandomColor(),
+          legendFontColor: '#7F7F7F',
+          legendFontSize: 12
+        }))
+      : [{ name: 'No Data', count: 1, color: '#CCCCCC', legendFontColor: '#7F7F7F', legendFontSize: 12 }];
 
     return (
       <Surface style={styles.chartCard}>
@@ -263,6 +341,7 @@ export default function AnalyticsScreen({ navigation }) {
           height={220}
           chartConfig={{
             color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+            formatNumber: (number) => Number(number).toFixed(0)
           }}
           accessor="count"
           backgroundColor="transparent"
