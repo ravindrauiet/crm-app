@@ -8,6 +8,7 @@ import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, Timestam
 import { db } from '../../config/firebase';
 import { FAB } from 'react-native-paper';
 import { Linking } from 'react-native';
+import { formatCurrency } from '../../utils/currency';
 
 export default function RepairTicketsScreen({ navigation }) {
   const theme = useTheme();
@@ -389,12 +390,6 @@ export default function RepairTicketsScreen({ navigation }) {
       } catch (e) {
         return "N/A";
       }
-    };
-    
-    // Format currency
-    const formatCurrency = (amount) => {
-      if (!amount) return "$0.00";
-      return "$" + parseFloat(amount).toFixed(2);
     };
     
     return (

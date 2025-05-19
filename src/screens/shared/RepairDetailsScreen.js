@@ -8,6 +8,7 @@ import { doc, getDoc, updateDoc, collection, query, where, getDocs, Timestamp } 
 import { db } from '../../config/firebase';
 import StatusTimeline from '../../components/StatusTimeline';
 import { generateWarrantyCertificatePDF, shareWarrantyCertificatePDF, generateRepairPDF, shareRepairPDF } from '../../utils/pdfGenerator';
+import { formatCurrency, formatAmount } from '../../utils/currency';
 
 const RepairDetailsScreen = ({ route, navigation }) => {
   const theme = useTheme();
@@ -431,12 +432,11 @@ const RepairDetailsScreen = ({ route, navigation }) => {
         />
         
         <TextInput
-          label="Price ($)"
+          label="Estimated Cost (₹)"
           value={price}
           onChangeText={setPrice}
           keyboardType="numeric"
-          style={styles.textInput}
-          mode="outlined"
+          style={styles.input}
         />
         
         <View style={styles.modalActions}>
@@ -641,7 +641,7 @@ const RepairDetailsScreen = ({ route, navigation }) => {
               <MaterialCommunityIcons name="currency-usd" size={20} color="#2196F3" />
               <Text style={styles.detailLabel}>Est. Cost:</Text>
               <Text style={styles.detailValue}>
-                ${typeof repair.estimatedCost === 'number' ? repair.estimatedCost.toFixed(2) : repair.estimatedCost || '0.00'}
+                {formatCurrency(repair.estimatedCost)}
               </Text>
             </View>
           </View>
@@ -757,7 +757,7 @@ const RepairDetailsScreen = ({ route, navigation }) => {
                 <View style={styles.partDetails}>
                   <Text style={styles.partQuantity}>Qty: {part.quantity}</Text>
                   <Text style={styles.partCost}>
-                    ${typeof part.unitCost === 'number' ? part.unitCost.toFixed(2) : part.unitCost || '0.00'} each
+                    {formatCurrency(part.unitCost)} each
                   </Text>
                 </View>
               </View>
@@ -768,7 +768,7 @@ const RepairDetailsScreen = ({ route, navigation }) => {
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total Parts Cost:</Text>
               <Text style={styles.totalCost}>
-                ${repair.partsUsed.reduce((total, part) => total + (part.unitCost || 0) * (part.quantity || 1), 0).toFixed(2)}
+                {formatCurrency(repair.partsUsed.reduce((total, part) => total + (part.unitCost || 0) * (part.quantity || 1), 0))}
               </Text>
             </View>
           </Surface>
@@ -1258,6 +1258,20 @@ const styles = StyleSheet.create({
   documentButton: {
     padding: 8,
     borderRadius: 8,
+  },
+  input: {
+    marginBottom: 16,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  priceText: {
+    fontWeight: 'bold',
   },
 });
 

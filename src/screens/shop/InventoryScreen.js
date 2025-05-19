@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
-import { Text, Surface, Button, IconButton, TextInput, Divider, Chip, FAB, Menu, Dialog, ActivityIndicator, Searchbar, Title } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, RefreshControl, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Text, Surface, Button, IconButton, TextInput, Divider, Chip, FAB, Menu, Dialog, ActivityIndicator, Searchbar, Title, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { fetchInventory, deleteInventoryItem, useInventory, useInventoryStatus } from '../../store/slices/inventorySlice';
+import { formatCurrency, formatAmount } from '../../utils/currency';
 
 export default function InventoryScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -199,7 +200,7 @@ export default function InventoryScreen({ navigation }) {
         
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Unit Cost:</Text>
-          <Text style={styles.detailValue}>${item.unitCost?.toFixed(2) || '0.00'}</Text>
+          <Text style={styles.detailValue}>{formatCurrency(item.unitCost)}</Text>
         </View>
         
         {item.supplier && (

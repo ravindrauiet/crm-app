@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateInventoryItem, useInventory, useInventoryStatus } from '../../store/slices/inventorySlice';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { formatCurrency, formatAmount } from '../../utils/currency';
 
 export default function InventoryEditScreen({ route, navigation }) {
   const { itemId } = route.params;
@@ -253,7 +254,7 @@ export default function InventoryEditScreen({ route, navigation }) {
             {errors.minStockLevel && <HelperText type="error">{errors.minStockLevel}</HelperText>}
             
             <TextInput
-              label="Unit Cost ($)"
+              label="Unit Cost (₹)"
               value={formData.unitCost}
               onChangeText={(text) => updateFormField('unitCost', text)}
               mode="outlined"
@@ -264,6 +265,19 @@ export default function InventoryEditScreen({ route, navigation }) {
               activeOutlineColor="#2196F3"
             />
             {errors.unitCost && <HelperText type="error">{errors.unitCost}</HelperText>}
+            
+            <TextInput
+              label="Selling Price (₹)"
+              value={formData.sellingPrice}
+              onChangeText={(text) => updateFormField('sellingPrice', text)}
+              mode="outlined"
+              style={styles.input}
+              keyboardType="numeric"
+              error={!!errors.sellingPrice}
+              outlineColor="#dddddd"
+              activeOutlineColor="#2196F3"
+            />
+            {errors.sellingPrice && <HelperText type="error">{errors.sellingPrice}</HelperText>}
             
             <Divider style={styles.divider} />
             

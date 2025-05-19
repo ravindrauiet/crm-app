@@ -2,6 +2,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import { Alert, Platform } from 'react-native';
+import { formatCurrency } from './currency';
 
 // Helper to format date
 const formatDate = (date) => {
@@ -20,12 +21,6 @@ const formatDate = (date) => {
   }
   
   return 'N/A';
-};
-
-// Helper to format currency
-const formatCurrency = (amount) => {
-  if (!amount) return '$0.00';
-  return '$' + parseFloat(amount).toFixed(2);
 };
 
 /**

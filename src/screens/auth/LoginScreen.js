@@ -142,6 +142,14 @@ export default function LoginScreen({ navigation }) {
 
             <Button
               mode="text"
+              onPress={() => navigation.navigate('ForgotPassword')}
+              style={styles.forgotButton}
+            >
+              Forgot Password?
+            </Button>
+
+            <Button
+              mode="text"
               onPress={() => navigation.navigate('Register')}
               style={styles.registerButton}
             >
@@ -199,6 +207,9 @@ const styles = StyleSheet.create({
   loginButton: {
     marginBottom: 16,
     borderRadius: 8,
+  },
+  forgotButton: {
+    marginBottom: 20,
   },
   registerButton: {
     marginTop: 8,

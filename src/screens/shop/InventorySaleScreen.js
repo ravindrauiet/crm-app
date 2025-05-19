@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux';
 import { doc, collection, addDoc, updateDoc, serverTimestamp, increment } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { formatCurrency, formatAmount } from '../../utils/currency';
 
 export default function InventorySaleScreen({ route, navigation }) {
   const { item } = route.params;
@@ -225,7 +226,7 @@ export default function InventorySaleScreen({ route, navigation }) {
               <View style={styles.infoItem}>
                 <Text variant="bodySmall">Unit Price</Text>
                 <Text variant="titleMedium" style={styles.priceText}>
-                  ${item.sellingPrice?.toFixed(2) || '0.00'}
+                  {formatCurrency(item.sellingPrice)}
                 </Text>
               </View>
               
@@ -255,7 +256,7 @@ export default function InventorySaleScreen({ route, navigation }) {
             )}
             
             <TextInput
-              label="Unit Price ($)"
+              label="Unit Price (₹)"
               value={price}
               onChangeText={setPrice}
               keyboardType="numeric"
@@ -263,7 +264,7 @@ export default function InventorySaleScreen({ route, navigation }) {
             />
             
             <TextInput
-              label="Discount ($)"
+              label="Discount (₹)"
               value={discount}
               onChangeText={setDiscount}
               keyboardType="numeric"
@@ -273,19 +274,19 @@ export default function InventorySaleScreen({ route, navigation }) {
             <View style={styles.orderSummary}>
               <View style={styles.summaryRow}>
                 <Text>Subtotal</Text>
-                <Text>${subtotal.toFixed(2)}</Text>
+                <Text>{formatCurrency(subtotal)}</Text>
               </View>
               
               <View style={styles.summaryRow}>
                 <Text>Discount</Text>
-                <Text>-${totalDiscount.toFixed(2)}</Text>
+                <Text>-{formatCurrency(totalDiscount)}</Text>
               </View>
               
               <Divider style={[styles.divider, {marginVertical: 8}]} />
               
               <View style={styles.summaryRow}>
                 <Text variant="titleMedium">Total</Text>
-                <Text variant="titleMedium" style={styles.totalText}>${total.toFixed(2)}</Text>
+                <Text variant="titleMedium" style={styles.totalText}>{formatCurrency(total)}</Text>
               </View>
             </View>
           </Surface>
@@ -324,7 +325,7 @@ export default function InventorySaleScreen({ route, navigation }) {
             
             {paymentStatus === 'partial' && (
               <TextInput
-                label="Amount Paid ($)"
+                label="Amount Paid (₹)"
                 value={amountPaid}
                 onChangeText={setAmountPaid}
                 keyboardType="numeric"

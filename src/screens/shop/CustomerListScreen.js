@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, Timestamp, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import { formatCurrency } from '../../utils/currency';
 
 export default function CustomerListScreen({ navigation }) {
   const theme = useTheme();
@@ -301,7 +302,7 @@ export default function CustomerListScreen({ navigation }) {
             <Text variant="titleMedium">{customer.name}</Text>
             {customer.totalDue > 0 && (
               <Badge style={styles.balanceBadge}>
-                ${customer.totalDue.toFixed(2)}
+                {formatCurrency(customer.totalDue)}
               </Badge>
             )}
           </View>
@@ -403,7 +404,7 @@ export default function CustomerListScreen({ navigation }) {
           <View style={styles.detailRow}>
             <MaterialCommunityIcons name="cash-alert" size={20} color="#F44336" />
             <Text variant="bodyMedium" style={styles.balanceText}>
-              Balance Due: ${customer.totalDue.toFixed(2)}
+              Balance Due: {formatCurrency(customer.totalDue)}
             </Text>
           </View>
         )}
@@ -483,7 +484,7 @@ export default function CustomerListScreen({ navigation }) {
         mode="outlined"
       />
       <Text variant="bodySmall" style={styles.inputHelper}>
-        Total balance due: ${selectedCustomer?.totalDue.toFixed(2) || '0.00'}
+        Total balance due: {formatCurrency(selectedCustomer?.totalDue)}
       </Text>
       
       <View style={styles.paymentMethodContainer}>

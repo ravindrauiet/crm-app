@@ -327,7 +327,7 @@ export default function ProfileScreen({ navigation }) {
               title="Settings"
               left={props => <List.Icon {...props} icon="cog" color="#555" />}
               right={props => <List.Icon {...props} icon="chevron-right" color="#2196F3" />}
-              onPress={() => Alert.alert('Coming Soon', 'Settings page is under development')}
+              onPress={() => navigation.navigate('Settings')}
             />
             <List.Item
               title="Help & Support"

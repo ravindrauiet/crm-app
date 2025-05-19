@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { doc, getDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import { formatCurrency } from '../../utils/currency';
 
 export default function CustomerDetailsScreen({ route, navigation }) {
   const theme = useTheme();
@@ -191,11 +192,6 @@ export default function CustomerDetailsScreen({ route, navigation }) {
     } catch (e) {
       return 'Invalid date';
     }
-  };
-  
-  const formatCurrency = (amount) => {
-    if (amount === undefined || amount === null) return '$0.00';
-    return `$${parseFloat(amount).toFixed(2)}`;
   };
   
   const getStatusColor = (status) => {

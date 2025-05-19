@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { adjustInventory, useInventory, useInventoryStatus } from '../../store/slices/inventorySlice';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { formatCurrency, formatAmount } from '../../utils/currency';
 
 export default function InventoryAdjustScreen({ route, navigation }) {
   const { itemId } = route.params;
@@ -20,6 +21,7 @@ export default function InventoryAdjustScreen({ route, navigation }) {
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
+  const [unitCost, setUnitCost] = useState('');
   
   useEffect(() => {
     // Find the item from inventory
@@ -234,6 +236,13 @@ export default function InventoryAdjustScreen({ route, navigation }) {
               activeOutlineColor="#2196F3"
             />
             
+            <View style={styles.infoItem}>
+              <Text variant="bodySmall">Unit Cost</Text>
+              <Text variant="titleMedium" style={styles.priceText}>
+                {formatCurrency(item.unitCost)}
+              </Text>
+            </View>
+
             <View style={styles.buttonContainer}>
               <Button
                 mode="outlined"
@@ -375,5 +384,11 @@ const styles = StyleSheet.create({
     width: '48%',
     borderRadius: 8,
     backgroundColor: '#2196F3',
+  },
+  infoItem: {
+    marginBottom: 16,
+  },
+  priceText: {
+    fontWeight: 'bold',
   },
 }); 

@@ -2,10 +2,12 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Auth Screens
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 
 // Customer Screens
 import CustomerHomeScreen from '../screens/customer/HomeScreen';
@@ -39,12 +41,14 @@ import InventorySaleScreen from '../screens/shop/InventorySaleScreen';
 
 // Shared Screens
 import RepairDetailsScreen from '../screens/shared/RepairDetailsScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import FirebaseDebug from '../components/FirebaseDebug';
 
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
   const { user, userType } = useSelector((state) => state.auth);
+  const { colors, theme } = useTheme();
 
   return (
     <NavigationContainer>
@@ -52,11 +56,15 @@ const AppNavigator = () => {
         initialRouteName={user ? (userType === 'customer' ? 'CustomerHome' : 'ShopDashboard') : 'Login'}
         screenOptions={{
           headerStyle: {
-            backgroundColor: '#f5f5f5',
+            backgroundColor: colors.surface,
           },
-          headerTintColor: '#000',
+          headerTintColor: colors.text,
           headerTitleStyle: {
             fontWeight: 'bold',
+            color: colors.text,
+          },
+          contentStyle: {
+            backgroundColor: colors.background,
           },
         }}
       >
@@ -71,6 +79,11 @@ const AppNavigator = () => {
             <Stack.Screen 
               name="Register" 
               component={RegisterScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="ForgotPassword" 
+              component={ForgotPasswordScreen}
               options={{ headerShown: false }}
             />
           </>
@@ -121,6 +134,11 @@ const AppNavigator = () => {
               name="RepairDetails" 
               component={RepairDetailsScreen}
               options={{ title: 'Repair Details' }}
+            />
+            <Stack.Screen 
+              name="Settings" 
+              component={SettingsScreen}
+              options={{ title: 'Settings' }}
             />
           </>
         ) : (
@@ -180,6 +198,11 @@ const AppNavigator = () => {
               name="RepairDetails" 
               component={RepairDetailsScreen}
               options={{ title: 'Repair Details' }}
+            />
+            <Stack.Screen 
+              name="Settings" 
+              component={SettingsScreen}
+              options={{ title: 'Settings' }}
             />
             <Stack.Screen 
               name="Inventory" 

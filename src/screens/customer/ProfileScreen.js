@@ -250,11 +250,11 @@ export default function ProfileScreen({ navigation }) {
           </Button>
           <Button
             mode="outlined"
-            onPress={() => navigation.navigate('Security')}
+            onPress={() => navigation.navigate('Settings')}
             style={styles.settingButton}
-            icon="shield-outline"
+            icon="cog-outline"
           >
-            Security Settings
+            App Settings
           </Button>
           <Button
             mode="outlined"

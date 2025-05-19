@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
-import { Text, Surface, Divider, Chip, ActivityIndicator, IconButton, Title } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, RefreshControl, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Text, Surface, Divider, Chip, ActivityIndicator, IconButton, Title, useTheme, TextInput, Button, HelperText } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSelector, useDispatch } from 'react-redux';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { fetchAuditLogs, useAuditLogs, useInventory, useInventoryStatus } from '../../store/slices/inventorySlice';
 import { format } from 'date-fns';
+import { formatCurrency, formatAmount } from '../../utils/currency';
 
 export default function InventoryAuditLogScreen({ route, navigation }) {
   const { itemId } = route.params;
@@ -135,6 +136,13 @@ export default function InventoryAuditLogScreen({ route, navigation }) {
           </View>
         )}
         
+        {log.unitCost && (
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Unit Cost:</Text>
+            <Text style={styles.detailValue}>{formatCurrency(log.unitCost)}</Text>
+          </View>
+        )}
+        
         {log.repairId && (
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Repair ID:</Text>
@@ -212,6 +220,13 @@ export default function InventoryAuditLogScreen({ route, navigation }) {
                 <Text style={styles.detailValue}>{item.partId}</Text>
               </View>
             )}
+
+            <View style={styles.infoItem}>
+              <Text variant="bodySmall">Unit Cost</Text>
+              <Text variant="titleMedium" style={styles.priceText}>
+                {formatCurrency(item.unitCost)}
+              </Text>
+            </View>
           </View>
         </Surface>
       )}
@@ -443,5 +458,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  infoItem: {
+    alignItems: 'center',
+  },
+  priceText: {
+    fontWeight: 'bold',
   },
 }); 

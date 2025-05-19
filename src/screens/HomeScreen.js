@@ -1,30 +1,32 @@
 import React from 'react';
 import { View, StyleSheet, Image } from 'react-native';
-import { Text, Button, useTheme } from 'react-native-paper';
+import { Text, Button, useTheme as usePaperTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '../contexts/ThemeContext';
 
 const HomeScreen = ({ navigation }) => {
-  const theme = useTheme();
+  const paperTheme = usePaperTheme();
+  const { colors } = useTheme();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text variant="displaySmall" style={styles.title}>
+          <Text variant="displaySmall" style={[styles.title, { color: colors.text }]}>
             Repair Shop CRM
           </Text>
-          <Text variant="bodyLarge" style={styles.subtitle}>
+          <Text variant="bodyLarge" style={[styles.subtitle, { color: colors.disabled }]}>
             Choose your role to continue
           </Text>
         </View>
 
         <View style={styles.cardsContainer}>
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colors.text }]}>
             <View style={styles.cardContent}>
-              <Text variant="headlineSmall" style={styles.cardTitle}>
+              <Text variant="headlineSmall" style={[styles.cardTitle, { color: colors.text }]}>
                 I'm a Customer
               </Text>
-              <Text variant="bodyMedium" style={styles.cardDescription}>
+              <Text variant="bodyMedium" style={[styles.cardDescription, { color: colors.disabled }]}>
                 Track your repairs, schedule appointments, and manage your devices
               </Text>
               <Button
@@ -37,12 +39,12 @@ const HomeScreen = ({ navigation }) => {
             </View>
           </View>
 
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: colors.surface, shadowColor: colors.text }]}>
             <View style={styles.cardContent}>
-              <Text variant="headlineSmall" style={styles.cardTitle}>
+              <Text variant="headlineSmall" style={[styles.cardTitle, { color: colors.text }]}>
                 I'm a Shop Owner
               </Text>
-              <Text variant="bodyMedium" style={styles.cardDescription}>
+              <Text variant="bodyMedium" style={[styles.cardDescription, { color: colors.disabled }]}>
                 Manage repairs, inventory, and customer relationships
               </Text>
               <Button
@@ -63,7 +65,6 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   content: {
     flex: 1,
@@ -79,16 +80,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   subtitle: {
-    color: '#666',
+    marginBottom: 10,
   },
   cardsContainer: {
     gap: 20,
   },
   card: {
-    backgroundColor: 'white',
     borderRadius: 12,
     elevation: 4,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -100,7 +99,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cardDescription: {
-    color: '#666',
     marginBottom: 20,
   },
   button: {
